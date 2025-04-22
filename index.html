@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mantooth - Blog</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <header>
+        <div class="container">
+            <h1 class="logo">Mantooth</h1>
+            <nav>
+                <ul>
+                    <li><a href="main.html" class="active">Home</a></li>
+                    <li><a href="blogs.html">Blogs</a></li>
+                    <li><a href="about.html">About</a></li>
+                    <li><a href="contact.html">Contact</a></li>
+                </ul>
+            </nav>
+        </div>
+    </header>
+
+    <main>
+        <div class="container">
+            <section class="featured-post" id="featured-post">
+                <h2>Welcome to Mantooth</h2>
+                <!-- The image will be set by JavaScript -->
+                <img id="featured-image" alt="Featured satellite image">
+                <p>Welcome to Mantooth-- the sliver of the internet where you can find my takes and opinions on things— from books, film, music, local eateries, the great outdoors, travel and just existing in today's world as I perceive it.</p>
+            </section>
+
+            <section class="recent-posts">
+                <h2>Recent Posts</h2>
+                <div class="post-grid">
+                    <!-- Post 1 -->
+                    <article class="post-card">
+                        <img src="https://via.placeholder.com/400x250" alt="Post Image">
+                        <h3>Sample Blog Post Title</h3>
+                        <p class="post-meta">Posted on March 3, 2025</p>
+                        <p>This is a brief excerpt from your blog post. It should give readers a taste of what to expect...</p>
+                        <a href="#" class="read-more">Read More</a>
+                    </article>
+                    
+                    <!-- Post 2 -->
+                    <article class="post-card">
+                        <img src="https://via.placeholder.com/400x250" alt="Post Image">
+                        <h3>Another Interesting Topic</h3>
+                        <p class="post-meta">Posted on March 2, 2025</p>
+                        <p>This is a brief excerpt from your blog post. It should give readers a taste of what to expect...</p>
+                        <a href="#" class="read-more">Read More</a>
+                    </article>
+                    
+                    <!-- Post 3 -->
+                    <article class="post-card">
+                        <img src="https://via.placeholder.com/400x250" alt="Post Image">
+                        <h3>Your Third Blog Post</h3>
+                        <p class="post-meta">Posted on March 1, 2025</p>
+                        <p>This is a brief excerpt from your blog post. It should give readers a taste of what to expect...</p>
+                        <a href="#" class="read-more">Read More</a>
+                    </article>
+                </div>
+            </section>
+        </div>
+    </main>
+
+    <footer>
+        <div class="container">
+            <p>&copy; 2025 Mantooth. All Rights Reserved.</p>
+            <div class="social-links">
+                <a href="#">Twitter</a>
+                <a href="#">Facebook</a>
+                <a href="#">Instagram</a>
+            </div>
+        </div>
+    </footer>
+
+    <script>
+        // Function to randomly select one of the satellite photos
+        document.addEventListener('DOMContentLoaded', function() {
+            const satImages = [
+                '/Images/sat_photo_1',
+                '/Images/sat_photo_2',
+                '/Images/sat_photo_3'
+            ];
+            
+            // Randomly select one of the images
+            const randomImageIndex = Math.floor(Math.random() * satImages.length);
+            const selectedImage = satImages[randomImageIndex];
+            
+            // Set the image path (assuming they're jpg - adjust if needed)
+            const imagePath = `${selectedImage}.jpg`;
+            
+            // Set the featured image src
+            const featuredImage = document.getElementById('featured-image');
+            featuredImage.src = imagePath;
+            
+            // Set the background image for the featured post section
+            const featuredPost = document.getElementById('featured-post');
+            featuredPost.style.backgroundImage = `url('${imagePath}')`;
+            
+            // Random background position for variety
+            const positions = ['center', 'top', 'bottom', 'left', 'right', 'top left', 'top right', 'bottom left', 'bottom right'];
+            const randomPosition = positions[Math.floor(Math.random() * positions.length)];
+            featuredPost.style.backgroundPosition = randomPosition;
+        });
+    </script>
+</body>
+</html>
