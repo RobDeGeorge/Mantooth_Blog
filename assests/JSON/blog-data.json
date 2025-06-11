@@ -1,0 +1,48 @@
+{
+  "posts": [
+    {
+      "id": "windsor-restaurant-2025",
+      "title": "The Windsor: My Favorite Restaurant",
+      "slug": "windsor-restaurant-blog",
+      "publishDate": "2025-03-04",
+      "excerpt": "Located on North Central Ave. in Phoenix, AZ lies my all time favorite restaurant-- The Windsor!",
+      "featuredImage": "windsor_blog.png",
+      "tags": ["restaurants", "phoenix", "food", "cocktails"],
+      "readTime": 8,
+      "fileName": "windsor-restaurant-blog.html"
+    },
+    {
+      "id": "cats-best-pets-2025",
+      "title": "Cats: The Best Pets",
+      "slug": "cats-best-pets-blog",
+      "publishDate": "2025-03-07",
+      "excerpt": "I am always taken by surprise when I learn that someone doesn't like cats. And I am even more shocked to hear there are people who absolutely despise cats!",
+      "featuredImage": "cat_blog.png",
+      "tags": ["pets", "cats", "animals", "lifestyle"],
+      "readTime": 6,
+      "fileName": "cats-best-pets-blog.html"
+    },
+    {
+      "id": "renaissance-festival-2025",
+      "title": "AZ Renaissance Festival: 2025 Edition",
+      "slug": "renaissance-festival-blog",
+      "publishDate": "2025-03-10",
+      "excerpt": "The Arizona Renaissance Festival (Ren Fest for short) is a staple of Arizona Spring time activities.",
+      "featuredImage": "ren_blog.png",
+      "tags": ["events", "arizona", "renaissance festival", "lifestyle"],
+      "readTime": 7,
+      "fileName": "renaissance-festival-blog.html"
+    },
+    {
+      "id": "jack-white-concert-2023",
+      "title": "Jack White 1-13-23: The Belasco, L.A.",
+      "slug": "jack-white-concert-blog",
+      "publishDate": "2023-01-20",
+      "excerpt": "This was truly one of the best nights of my entire life thus far, so I have decided to type it down to preserve the memory.",
+      "featuredImage": "jack_blog.png",
+      "tags": ["music", "concerts", "jack white", "los angeles"],
+      "readTime": 9,
+      "fileName": "jack-white-concert-blog.html"
+    }
+  ]
+}

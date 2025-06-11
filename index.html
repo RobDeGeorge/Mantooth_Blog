@@ -12,7 +12,7 @@
             <h1 class="logo">Mantooth</h1>
             <nav>
                 <ul>
-                    <li><a href="main.html" class="active">Home</a></li>
+                    <li><a href="index.html" class="active">Home</a></li>
                     <li><a href="blogs.html">Blogs</a></li>
                     <li><a href="about.html">About</a></li>
                     <li><a href="contact.html">Contact</a></li>
@@ -33,31 +33,28 @@
             <section class="recent-posts">
                 <h2>Recent Posts</h2>
                 <div class="post-grid">
-                    <!-- Post 1 -->
-                    <article class="post-card">
-                        <img src="https://via.placeholder.com/400x250" alt="Post Image">
-                        <h3>Sample Blog Post Title</h3>
-                        <p class="post-meta">Posted on March 3, 2025</p>
-                        <p>This is a brief excerpt from your blog post. It should give readers a taste of what to expect...</p>
-                        <a href="#" class="read-more">Read More</a>
+                    <!-- Post 1 - The Windsor -->
+                    <article class="post-card clickable-card" data-url="assests/Blogs/windsor-restaurant-blog.html">
+                        <img src="assests/Images/windsor_blog.png" alt="The Windsor Restaurant">
+                        <h3>The Windsor: My Favorite Restaurant</h3>
+                        <p class="post-meta">Posted on March 4, 2025</p>
+                        <p>Located on North Central Ave. in Phoenix, AZ lies my all time favorite restaurant-- The Windsor! Their website describes the place as "a neighborhood bar and restaurant"...</p>
                     </article>
                     
-                    <!-- Post 2 -->
-                    <article class="post-card">
-                        <img src="https://via.placeholder.com/400x250" alt="Post Image">
-                        <h3>Another Interesting Topic</h3>
-                        <p class="post-meta">Posted on March 2, 2025</p>
-                        <p>This is a brief excerpt from your blog post. It should give readers a taste of what to expect...</p>
-                        <a href="#" class="read-more">Read More</a>
+                    <!-- Post 2 - Cats -->
+                    <article class="post-card clickable-card" data-url="assests/Blogs/cats-best-pets-blog.html">
+                        <img src="assests/Images/cat_blog.png" alt="Cat sitting in sunlight">
+                        <h3>Cats: The Best Pets</h3>
+                        <p class="post-meta">Posted on March 7, 2025</p>
+                        <p>I am always taken by surprise when I learn that someone doesn't like cats. And I am even more shocked to hear there are people who absolutely despise cats!</p>
                     </article>
                     
-                    <!-- Post 3 -->
-                    <article class="post-card">
-                        <img src="https://via.placeholder.com/400x250" alt="Post Image">
-                        <h3>Your Third Blog Post</h3>
-                        <p class="post-meta">Posted on March 1, 2025</p>
-                        <p>This is a brief excerpt from your blog post. It should give readers a taste of what to expect...</p>
-                        <a href="#" class="read-more">Read More</a>
+                    <!-- Post 3 - Renaissance Festival -->
+                    <article class="post-card clickable-card" data-url="assests/Blogs/renaissance-festival-blog.html">
+                        <img src="assests/Images/ren_blog.png" alt="Arizona Renaissance Festival">
+                        <h3>AZ Renaissance Festival: 2025 Edition</h3>
+                        <p class="post-meta">Posted on March 10, 2025</p>
+                        <p>The Arizona Renaissance Festival (Ren Fest for short) is a staple of Arizona Spring time activities. Located in Apache Junction, near the Superstition Mountains...</p>
                     </article>
                 </div>
             </section>
@@ -75,20 +72,21 @@
         </div>
     </footer>
 
+    <script src="assests/JS/clickable-cards.js"></script>
     <script>
         // Function to randomly select one of the satellite photos
         document.addEventListener('DOMContentLoaded', function() {
             const satImages = [
-                '/Images/sat_photo_1',
-                '/Images/sat_photo_2',
-                '/Images/sat_photo_3'
+                'assests/Images/Sat_photo_1',
+                'assests/Images/Sat_photo_2',
+                'assests/Images/Sat_photo_3'
             ];
             
             // Randomly select one of the images
             const randomImageIndex = Math.floor(Math.random() * satImages.length);
             const selectedImage = satImages[randomImageIndex];
             
-            // Set the image path (assuming they're jpg - adjust if needed)
+            // Set the image path
             const imagePath = `${selectedImage}.jpg`;
             
             // Set the featured image src

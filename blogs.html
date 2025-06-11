@@ -12,10 +12,10 @@
             <h1 class="logo">Mantooth</h1>
             <nav>
                 <ul>
-                    <li><a href="../index.html">Home</a></li>
-                    <li><a href="../blogs.html" class="active">Blogs</a></li>
-                    <li><a href="../about.html">About</a></li>
-                    <li><a href="../contact.html">Contact</a></li>
+                    <li><a href="index.html">Home</a></li>
+                    <li><a href="blogs.html" class="active">Blogs</a></li>
+                    <li><a href="about.html">About</a></li>
+                    <li><a href="contact.html">Contact</a></li>
                 </ul>
             </nav>
         </div>
@@ -29,15 +29,14 @@
             </section>
 
             <section class="blogs-grid">
-                <!-- Blog Post 1 -->
-                <article class="blog-item">
-                    <img src="https://via.placeholder.com/800x400" alt="The Windsor Restaurant">
+                <!-- Blog Post 1 - The Windsor -->
+                <article class="blog-item clickable-card" data-tags="restaurants,phoenix,food,cocktails" data-url="assests/Blogs/windsor-restaurant-blog.html">
+                    <img src="assests/Images/windsor_blog.png" alt="The Windsor Restaurant">
                     <div class="blog-content">
                         <h3>The Windsor: My Favorite Restaurant</h3>
                         <p class="post-meta">Posted on March 4, 2025</p>
                         <p>Located on North Central Ave. in Phoenix, AZ lies my all time favorite restaurant-- The Windsor! Their website describes the place as "a neighborhood bar and restaurant" that offers "high quality wine and beer, prohibition era cocktails and casual and familiar bar food with an upscale twist."</p>
                         <div class="blog-footer">
-                            <a href="Blogs/windsor-restaurant-blog.html" class="read-more">Read More</a>
                             <div class="blog-tags">
                                 <span class="tag">Restaurants</span>
                                 <span class="tag">Phoenix</span>
@@ -48,15 +47,14 @@
                     </div>
                 </article>
                 
-                <!-- Blog Post 2 (Updated to Cat Blog) -->
-                <article class="blog-item">
-                    <img src="https://via.placeholder.com/800x400" alt="Cat sitting in sunlight">
+                <!-- Blog Post 2 - Cats -->
+                <article class="blog-item clickable-card" data-tags="pets,cats,animals,lifestyle" data-url="assests/Blogs/cats-best-pets-blog.html">
+                    <img src="assests/Images/cat_blog.png" alt="Cat sitting in sunlight">
                     <div class="blog-content">
                         <h3>Cats: The Best Pets</h3>
                         <p class="post-meta">Posted on March 7, 2025</p>
                         <p>I am always taken by surprise when I learn that someone doesn't like cats. And I am even more shocked to hear there are people who absolutely despise cats! Find out why cats make the best pets and why even the ancient Egyptians revered them.</p>
                         <div class="blog-footer">
-                            <a href="Blogs/cats-best-pets-blog.html" class="read-more">Read More</a>
                             <div class="blog-tags">
                                 <span class="tag">Pets</span>
                                 <span class="tag">Cats</span>
@@ -67,16 +65,14 @@
                     </div>
                 </article>
                                 
-                <!-- Blog Post 3 -->
-                <!-- Renaissance Festival Blog Post -->
-                <article class="blog-item">
-                    <img src="https://via.placeholder.com/800x400" alt="Arizona Renaissance Festival">
+                <!-- Blog Post 3 - Renaissance Festival -->
+                <article class="blog-item clickable-card" data-tags="events,arizona,renaissance festival,lifestyle" data-url="assests/Blogs/renaissance-festival-blog.html">
+                    <img src="assests/Images/ren_blog.png" alt="Arizona Renaissance Festival">
                     <div class="blog-content">
                         <h3>AZ Renaissance Festival: 2025 Edition</h3>
                         <p class="post-meta">Posted on March 10, 2025</p>
                         <p>The Arizona Renaissance Festival (Ren Fest for short) is a staple of Arizona Spring time activities. Located in Apache Junction, near the Superstition Mountains, the festival runs from the start of February to the end of March, each weekend, "rain or shine."</p>
                         <div class="blog-footer">
-                            <a href="/Blogs/renaissance-festival-blog.html" class="read-more">Read More</a>
                             <div class="blog-tags">
                                 <span class="tag">Events</span>
                                 <span class="tag">Arizona</span>
@@ -87,16 +83,14 @@
                     </div>
                 </article>
                 
-                <!-- Blog Post 4 -->
-                <!-- Jack White Blog Post -->
-                <article class="blog-item">
-                    <img src="https://via.placeholder.com/800x400" alt="Jack White Concert at The Belasco">
+                <!-- Blog Post 4 - Jack White -->
+                <article class="blog-item clickable-card" data-tags="music,concerts,jack white,los angeles" data-url="assests/Blogs/jack-white-concert-blog.html">
+                    <img src="assests/Images/jack_blog.png" alt="Jack White Concert at The Belasco">
                     <div class="blog-content">
                         <h3>Jack White 1-13-23: The Belasco, L.A.</h3>
                         <p class="post-meta">Posted on January 20, 2023</p>
                         <p>This was truly one of the best nights of my entire life thus far. Although this was not my first Jack White concert, it was the first time I was "solo rollin'" on my own-- driving from AZ to L.A. The Belasco Theater was absolutely packed with die-hard fans as we all eagerly awaited the Supply Chain Issues tour performance.</p>
                         <div class="blog-footer">
-                            <a href="/Blogs/jack-white-concert-blog.html" class="read-more">Read More</a>
                             <div class="blog-tags">
                                 <span class="tag">Music</span>
                                 <span class="tag">Concerts</span>
@@ -106,12 +100,6 @@
                         </div>
                     </div>
                 </article>
-
-            <section class="pagination">
-                <a href="#" class="page-link active">1</a>
-                <a href="#" class="page-link">2</a>
-                <a href="#" class="page-link">3</a>
-                <a href="#" class="page-link next">Next →</a>
             </section>
         </div>
     </main>
@@ -127,6 +115,7 @@
         </div>
     </footer>
 
-    <script src="script.js"></script>
+    <script src="assests/JS/tag-filter.js"></script>
+    <script src="assests/JS/clickable-cards.js"></script>
 </body>
 </html>

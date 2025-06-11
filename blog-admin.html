@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Blog Admin - Mantooth</title>
+    <link rel="stylesheet" href="assests/CSS/style.css">
+    <style>
+        .admin-form {
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .form-group {
+            margin-bottom: 20px;
+        }
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: bold;
+            color: #2D4059;
+        }
+        .form-group input,
+        .form-group textarea,
+        .form-group select {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #B7A99A;
+            border-radius: 8px;
+            font-family: 'Courier New', monospace;
+            font-size: 1rem;
+            background-color: #F9F5EB;
+            transition: all 0.3s ease;
+        }
+        .form-group input:focus,
+        .form-group textarea:focus {
+            outline: none;
+            border-color: #F18F01;
+            box-shadow: 0 0 0 2px rgba(241, 143, 1, 0.2);
+        }
+        #content {
+            min-height: 400px;
+            font-family: 'Courier New', monospace;
+            resize: vertical;
+        }
+        .tag-input {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 5px;
+            margin-top: 5px;
+        }
+        .tag-item {
+            background: #F18F01;
+            color: white;
+            padding: 4px 8px;
+            border-radius: 12px;
+            font-size: 0.8rem;
+        }
+        .admin-container {
+            background-color: #FFF;
+            border: 4px solid #F18F01;
+            border-radius: 12px;
+            padding: 30px;
+            margin: 20px auto;
+            box-shadow: 8px 8px 0 #5CB8E4;
+        }
+        .file-help {
+            background: #e8f4fd;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            border-left: 4px solid #5CB8E4;
+        }
+        .file-help h4 {
+            margin: 0 0 10px 0;
+            color: #2D4059;
+        }
+        .file-help ul {
+            margin: 0;
+            padding-left: 20px;
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <div class="container">
+            <h1 class="logo">Mantooth Admin</h1>
+            <nav>
+                <ul>
+                    <li><a href="index.html">Back to Site</a></li>
+                    <li><a href="blogs.html">View Blogs</a></li>
+                </ul>
+            </nav>
+        </div>
+    </header>
+
+    <main>
+        <div class="container">
+            <div class="admin-container">
+                <h2 style="text-align: center; color: #2D4059; margin-bottom: 30px;">Create New Blog Post</h2>
+                
+                <div class="file-help">
+                    <h4>📁 Your File Structure:</h4>
+                    <ul>
+                        <li><strong>Blog posts:</strong> assests/Blogs/</li>
+                        <li><strong>Images:</strong> assests/Images/</li>
+                        <li><strong>Existing images:</strong> cat_blog.png, jack_blog.png, ren_blog.png, windsor_blog.png</li>
+                    </ul>
+                </div>
+
+                <form class="admin-form" id="blogForm">
+                    <div class="form-group">
+                        <label for="title">Blog Title</label>
+                        <input type="text" id="title" name="title" required placeholder="e.g., My Amazing Restaurant Review">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="excerpt">Excerpt (Brief description for blog listing)</label>
+                        <textarea id="excerpt" name="excerpt" rows="3" required placeholder="A short description that will appear on the blogs page..."></textarea>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="content">Blog Content (Full HTML content)</label>
+                        <textarea id="content" name="content" required placeholder="<p>Write your blog content here using HTML tags...</p>"></textarea>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="featuredImage">Featured Image (filename only)</label>
+                        <input type="text" id="featuredImage" name="featuredImage" placeholder="my_blog_image.png" value="">
+                        <small style="color: #666; font-size: 0.9em;">Just the filename - it will be saved in assests/Images/</small>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="tags">Tags (comma-separated)</label>
+                        <input type="text" id="tags" name="tags" placeholder="restaurants, phoenix, food, cocktails">
+                        <div class="tag-input" id="tagDisplay"></div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="publishDate">Publish Date</label>
+                        <input type="date" id="publishDate" name="publishDate">
+                    </div>
+                    
+                    <button type="submit" class="submit-btn">Generate Blog Post Files</button>
+                </form>
+                
+                <div id="output" style="margin-top: 30px; display: none;">
+                    <h3 style="color: #2D4059;">Generated Files Ready for Copy:</h3>
+                    <div id="generatedCode"></div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <footer>
+        <div class="container">
+            <p>&copy; 2025 Mantooth. All Rights Reserved.</p>
+        </div>
+    </footer>
+
+    <script src="assests/JS/blog-generator.js"></script>
+    <script src="assests/JS/blog-admin.js"></script>
+</body>
+</html>
