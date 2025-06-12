@@ -1,18 +1,16 @@
 #!/usr/bin/env python3
 """
-Mantooth Blog Processor - Interactive PDF processing
-Enhanced with better paragraph detection using font analysis
+Mantooth Blog Processor - Balanced Paragraph Detection
+Converts PDF files to formatted HTML blog posts
 """
 
 import os
 import sys
 import json
 import re
-import urllib.parse
 from datetime import datetime
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
-from collections import Counter
 
 try:
     import pdfplumber
@@ -56,24 +54,20 @@ class MantoothBlogProcessor:
         current_path = Path.cwd()
         script_path = Path(__file__).parent
         
-        # Look upward from current directory
         search_paths = [current_path]
         temp_path = current_path
-        for _ in range(5):  # Look up to 5 levels up
+        for _ in range(5):
             temp_path = temp_path.parent
             search_paths.append(temp_path)
         
-        # Also check relative to script location
         search_paths.extend([
             script_path.parent,
             script_path.parent.parent,
         ])
         
         for root in search_paths:
-            # Look for key files that indicate project root
             if (root / "blogs.html").exists() and (root / "assests").exists():
                 return root
-            # Fallback: just look for assests folder
             elif (root / "assests" / "Blogs").exists() and (root / "index.html").exists():
                 return root
         
@@ -85,10 +79,7 @@ class MantoothBlogProcessor:
             "autoExcerpts": True,
             "updateBlogsPage": True,
             "maxExcerptLength": 200,
-            "preserveFormatting": True,
-            "detectLinks": True,
-            "minParagraphLength": 20,  # Minimum length for a paragraph
-            "paragraphFontTolerance": 0.1  # Font size tolerance for paragraph detection
+            "minParagraphLength": 50
         }
         
         try:
@@ -100,16 +91,6 @@ class MantoothBlogProcessor:
                 return default_config
         except Exception:
             return default_config
-
-    def save_configuration(self):
-        """Save current configuration to JSON file"""
-        try:
-            self.config['lastUpdated'] = datetime.now().isoformat()
-            with open(self.config_path, 'w', encoding='utf-8') as f:
-                json.dump(self.config, f, indent=2)
-            self.log("Configuration saved to assests/JSON/processing-config.json")
-        except Exception as e:
-            self.log(f"Error saving config: {e}", "ERROR")
 
     def log(self, message: str, level: str = "INFO"):
         """Log messages with timestamp"""
@@ -135,7 +116,6 @@ class MantoothBlogProcessor:
         print("=" * 50)
         
         for i, pdf in enumerate(pdfs, 1):
-            # Get file info
             size_mb = pdf.stat().st_size / (1024 * 1024)
             modified = datetime.fromtimestamp(pdf.stat().st_mtime).strftime("%Y-%m-%d %H:%M")
             
@@ -166,481 +146,194 @@ class MantoothBlogProcessor:
                 return None
 
     def extract_text_from_pdf(self, pdf_path: Path) -> Optional[Dict]:
-        """Extract text and metadata from PDF with font information"""
+        """Extract text from PDF - balanced approach"""
         self.log(f"📄 Extracting text from: {pdf_path.name}")
         
         try:
             with pdfplumber.open(pdf_path) as pdf:
                 full_text = ""
-                pages_data = []
-                links = []
-                all_words_with_font = []
                 
                 for page_num, page in enumerate(pdf.pages, 1):
                     self.log(f"   Processing page {page_num}/{len(pdf.pages)}")
                     
-                    # Extract words with font information
-                    words_with_font = page.extract_words(
-                        extra_attrs=["fontname", "size"],
-                        keep_blank_chars=False,
-                        use_text_flow=False
-                    )
+                    # Extract text WITHOUT layout preservation (cleaner for our needs)
+                    text = page.extract_text()
                     
-                    # Store for font analysis
-                    all_words_with_font.extend(words_with_font)
-                    
-                    # Extract text with layout preservation
-                    text = page.extract_text(layout=True, x_tolerance=3, y_tolerance=3)
                     if text:
-                        full_text += text + "\n\n"
-                        pages_data.append({
-                            'page': page_num,
-                            'text': text.strip(),
-                            'char_count': len(text),
-                            'words_with_font': words_with_font
-                        })
-                    
-                    # Extract links/annotations
-                    if self.config.get('detectLinks', True):
-                        page_links = self.extract_links_from_page(page)
-                        links.extend(page_links)
+                        # Add page separator
+                        if page_num > 1:
+                            full_text += "\n\n"
+                        full_text += text
                 
                 if not full_text.strip():
                     raise ValueError("No text content found")
                 
-                # Analyze font usage
-                font_analysis = self.analyze_fonts(all_words_with_font)
+                # Now detect paragraphs from the full text
+                paragraphs = self.detect_paragraphs(full_text)
                 
                 result = {
-                    'text': full_text.strip(),
-                    'pages': pages_data,
-                    'links': links,
+                    'paragraphs': paragraphs,
+                    'text': '\n\n'.join(paragraphs),
                     'total_pages': len(pdf.pages),
-                    'total_chars': len(full_text),
-                    'font_analysis': font_analysis,
-                    'words_with_font': all_words_with_font
+                    'total_paragraphs': len(paragraphs)
                 }
                 
-                self.log(f"✅ Extracted {len(full_text)} characters, {len(links)} links")
+                self.log(f"✅ Extracted {len(paragraphs)} paragraphs from {len(pdf.pages)} pages")
                 return result
                 
         except Exception as e:
             self.log(f"❌ Error extracting from {pdf_path.name}: {e}", "ERROR")
             return None
 
-    def analyze_fonts(self, words_with_font: List[Dict]) -> Dict:
-        """Analyze font usage to identify paragraph and header fonts"""
-        font_counter = Counter()
-        size_counter = Counter()
-        
-        for word in words_with_font:
-            if 'fontname' in word and 'size' in word:
-                # Count font+size combinations
-                font_key = f"{word['fontname']}_{word['size']:.1f}"
-                font_counter[font_key] += len(word['text'])
-                size_counter[word['size']] += len(word['text'])
-        
-        # Most common font+size combination is likely body text
-        most_common_font = font_counter.most_common(1)[0][0] if font_counter else None
-        
-        # Extract font name and size from the key
-        if most_common_font:
-            parts = most_common_font.rsplit('_', 1)
-            body_font_name = parts[0]
-            body_font_size = float(parts[1])
-        else:
-            body_font_name = None
-            body_font_size = 12.0  # Default
-        
-        return {
-            'body_font': most_common_font,
-            'body_font_name': body_font_name,
-            'body_font_size': body_font_size,
-            'font_distribution': dict(font_counter.most_common(10)),
-            'size_distribution': dict(size_counter.most_common(10))
-        }
-
-    def extract_links_from_page(self, page) -> List[Dict]:
-        """Extract links from a PDF page"""
-        links = []
-        
-        try:
-            # Get annotations (links)
-            if hasattr(page, 'annots') and page.annots:
-                for annot in page.annots:
-                    if annot.get('subtype') == 'Link':
-                        uri = annot.get('uri')
-                        if uri:
-                            links.append({
-                                'url': uri,
-                                'type': 'annotation',
-                                'page': page.page_number
-                            })
-            
-            # Also look for URL patterns in text
-            text = page.extract_text()
-            if text:
-                url_patterns = [
-                    r'https?://[^\s\)]+',
-                    r'www\.[^\s\)]+',
-                    r'[a-zA-Z0-9.-]+\.(com|org|net|edu|gov|io|co)[^\s\)]*'
-                ]
-                
-                for pattern in url_patterns:
-                    matches = re.finditer(pattern, text, re.IGNORECASE)
-                    for match in matches:
-                        url = match.group().rstrip('.,;!?')
-                        if not url.startswith('http'):
-                            url = 'https://' + url
-                        
-                        links.append({
-                            'url': url,
-                            'type': 'text_pattern',
-                            'page': page.page_number,
-                            'context': text[max(0, match.start()-20):match.end()+20]
-                        })
-        
-        except Exception as e:
-            self.log(f"Warning: Could not extract links from page: {e}", "WARN")
-        
-        return links
-
-    def clean_and_format_text_enhanced(self, extraction_result: Dict) -> str:
-        """Enhanced text cleaning using font information for better paragraph detection"""
-        raw_text = extraction_result['text']
-        font_analysis = extraction_result.get('font_analysis', {})
-        words_with_font = extraction_result.get('words_with_font', [])
-        links = extraction_result.get('links', [])
-        
-        # Get body font information
-        body_font_size = font_analysis.get('body_font_size', 12.0)
-        font_tolerance = self.config.get('paragraphFontTolerance', 0.1)
-        
-        # Step 1: Clean up obvious PDF artifacts
-        cleaned = raw_text
-        
-        # Remove page numbers and headers/footers
-        cleaned = re.sub(r'Page \d+.*?\n', '', cleaned, flags=re.IGNORECASE)
-        cleaned = re.sub(r'\n\s*\d+\s*\n', '\n', cleaned)  # Standalone page numbers
-        cleaned = re.sub(r'\f', '\n\n', cleaned)  # Form feeds
-        
-        # Step 2: Split into lines and analyze each line's font properties
-        lines = cleaned.split('\n')
-        line_properties = []
-        
+    def detect_paragraphs(self, text: str) -> List[str]:
+        """
+        Robust paragraph detection that survives PDFs where leading spaces
+        are stripped out.
+    
+        Rules, in order of preference:
+        1. A truly blank line       → paragraph break.
+        2. A line indented ≥ 2 spc  → paragraph break (if we already have content).
+        3. Sentence-boundary check  → previous line ends with .?! and this line
+           starts with an uppercase letter (and we already have content).
+        """
+        lines = text.replace("\r\n", "\n").replace("\r", "\n").split("\n")
+    
+        paragraphs: List[str] = []
+        current:  List[str] = []
+    
         for line in lines:
-            line_text = line.strip()
-            if not line_text:
-                line_properties.append({'text': '', 'is_header': False, 'font_size': body_font_size})
+            raw = line.rstrip()
+            if not raw.strip():                         # rule-1
+                if current:
+                    paragraphs.append(self.clean_paragraph_text(" ".join(current)))
+                    current = []
                 continue
-            
-            # Find average font size for this line
-            line_font_sizes = []
-            for word in words_with_font:
-                if word['text'] in line_text:
-                    line_font_sizes.append(word.get('size', body_font_size))
-            
-            avg_font_size = sum(line_font_sizes) / len(line_font_sizes) if line_font_sizes else body_font_size
-            
-            # Determine if this line is likely a header
-            is_header = self.is_likely_header_by_font(line_text, avg_font_size, body_font_size, font_tolerance)
-            
-            line_properties.append({
-                'text': line_text,
-                'is_header': is_header,
-                'font_size': avg_font_size
-            })
-        
-        # Step 3: Build paragraphs using font information
-        paragraphs = []
-        current_paragraph = []
-        
-        i = 0
-        while i < len(line_properties):
-            line_prop = line_properties[i]
-            line_text = line_prop['text']
-            
-            if not line_text:  # Empty line
-                if current_paragraph:
-                    # End current paragraph
-                    paragraph_text = ' '.join(current_paragraph).strip()
-                    if len(paragraph_text) > self.config.get('minParagraphLength', 20):
-                        paragraphs.append(paragraph_text)
-                    current_paragraph = []
-                i += 1
-                continue
-            
-            # If this is a header, save current paragraph and add header
-            if line_prop['is_header']:
-                if current_paragraph:
-                    paragraph_text = ' '.join(current_paragraph).strip()
-                    if len(paragraph_text) > self.config.get('minParagraphLength', 20):
-                        paragraphs.append(paragraph_text)
-                    current_paragraph = []
-                
-                # Add header as its own paragraph
-                paragraphs.append(line_text)
-                i += 1
-                continue
-            
-            # Check if this line should start a new paragraph
-            should_start_new = self.should_start_new_paragraph_enhanced(
-                line_text, current_paragraph, line_properties, i
-            )
-            
-            if should_start_new and current_paragraph:
-                # Finish current paragraph
-                paragraph_text = ' '.join(current_paragraph).strip()
-                if len(paragraph_text) > self.config.get('minParagraphLength', 20):
-                    paragraphs.append(paragraph_text)
-                current_paragraph = [line_text]
+    
+            indent = len(raw) - len(raw.lstrip())
+            new_para = False
+    
+            if indent >= 2 and current:                 # rule-2
+                new_para = True
+            elif (current and
+                  current[-1][-1] in ".?!" and          # rule-3
+                  raw.lstrip()[:1].isupper()):
+                new_para = True
+    
+            if new_para:
+                paragraphs.append(self.clean_paragraph_text(" ".join(current)))
+                current = [raw.strip()]
             else:
-                current_paragraph.append(line_text)
-            
-            i += 1
-        
-        # Don't forget the last paragraph
-        if current_paragraph:
-            paragraph_text = ' '.join(current_paragraph).strip()
-            if len(paragraph_text) > self.config.get('minParagraphLength', 20):
-                paragraphs.append(paragraph_text)
-        
-        # Step 4: Post-process paragraphs
-        final_paragraphs = self.post_process_paragraphs(paragraphs)
-        
-        # Step 5: Convert URLs to markdown-style links if found
-        if self.config.get('detectLinks', True) and links:
-            for i, para in enumerate(final_paragraphs):
-                final_paragraphs[i] = self.convert_links_to_markdown(para, links)
-        
-        return '\n\n'.join(final_paragraphs)
+                current.append(raw.strip())
+    
+        if current:
+            paragraphs.append(self.clean_paragraph_text(" ".join(current)))
 
-    def is_likely_header_by_font(self, text: str, font_size: float, body_font_size: float, tolerance: float) -> bool:
-        """Determine if text is likely a header based on font size and other characteristics"""
-        # Font size significantly larger than body text
-        if font_size > body_font_size * (1 + tolerance):
-            return True
-        
-        # Short text that doesn't end with sentence punctuation
-        if len(text) < 100 and not text.endswith(('.', '!', '?', ',')):
-            # Check for heading patterns
-            heading_patterns = [
-                r'^[A-Z][a-z]+.*:$',  # Title with colon
-                r'^[A-Z][A-Z\s]+$',   # ALL CAPS
-                r'^Chapter\s+\d+',    # Chapter
-                r'^Section\s+\d+',    # Section
-                r'^\d+\.\s+[A-Z]',    # Numbered heading
-                r'^[A-Z][^.!?]{0,50}$'  # Short capitalized text without punctuation
-            ]
-            
-            for pattern in heading_patterns:
-                if re.match(pattern, text):
-                    return True
-        
-        return False
+        # Optional fix — remove duplicate title if it was embedded in the first paragraph
+        filename_title = self.extract_title_from_filename(self.selected_pdf.name).rstrip(":").lower()
+        if paragraphs:
+            first = paragraphs[0]
+            if first.lower().startswith(filename_title):
+                trimmed = first[len(filename_title):].lstrip(": ").strip()
+                if trimmed:
+                    paragraphs[0] = trimmed
 
-    def should_start_new_paragraph_enhanced(self, line: str, current_paragraph: List[str], 
-                                           line_properties: List[Dict], line_index: int) -> bool:
-        """Enhanced paragraph detection using multiple signals"""
-        
-        # If no current paragraph, always start new
-        if not current_paragraph:
-            return True
-        
-        # Get current and previous line properties
-        current_prop = line_properties[line_index]
-        
-        # If previous line was much shorter than average, might be paragraph end
-        if current_paragraph:
-            last_line = current_paragraph[-1]
-            avg_line_length = sum(len(l) for l in current_paragraph) / len(current_paragraph)
-            if len(last_line) < avg_line_length * 0.7:
-                # Previous line was short, check if it ends with punctuation
-                if re.search(r'[.!?]\s*$', last_line):
-                    return True
-        
-        # Check for sentence endings in previous content
-        last_line = current_paragraph[-1] if current_paragraph else ''
-        
-        # If last line ends with sentence punctuation and this line starts with capital
-        if re.search(r'[.!?]\s*$', last_line) and re.match(r'^[A-Z]', line):
-            # Check if there was a significant gap (empty line) before this
-            if line_index > 0 and not line_properties[line_index - 1]['text']:
-                return True
-        
-        # Check for topic changes (basic keyword analysis)
-        current_text = ' '.join(current_paragraph).lower()
-        line_lower = line.lower()
-        
-        # Topic change indicators
-        topic_indicators = [
-            'however', 'meanwhile', 'in contrast', 'on the other hand', 
-            'furthermore', 'additionally', 'moreover', 'nevertheless',
-            'in conclusion', 'to summarize', 'first', 'second', 'third',
-            'finally', 'next', 'then'
-        ]
-        
-        for indicator in topic_indicators:
-            if line_lower.startswith(indicator):
-                return True
-        
-        # Check for time/location transitions
-        time_location_patterns = [
-            r'^(yesterday|today|tomorrow|last\s+\w+|next\s+\w+)',
-            r'^(in|at|on|from|during)\s+[A-Z]',
-            r'^\d{4}|\d{1,2}[\/\-]\d{1,2}',  # Dates
-        ]
-        
-        for pattern in time_location_patterns:
-            if re.match(pattern, line_lower):
-                return True
-        
-        # Check if this line is indented (starts with spaces)
-        if line.startswith('    ') or line.startswith('\t'):
-            return True
-        
-        return False
+        return paragraphs
 
-    def post_process_paragraphs(self, paragraphs: List[str]) -> List[str]:
-        """Post-process paragraphs to fix common issues"""
-        processed = []
-        
-        for para in paragraphs:
-            # Fix sentence spacing
-            para = re.sub(r'([.!?])\s*([A-Z])', r'\1 \2', para)
-            
-            # Remove extra spaces
-            para = re.sub(r'\s+', ' ', para)
-            
-            # Trim
-            para = para.strip()
-            
-            # Skip very short paragraphs unless they look like headers
-            if len(para) < self.config.get('minParagraphLength', 20):
-                if self.is_likely_header_by_font(para, 0, 0, 0):  # Using text patterns only
-                    processed.append(para)
-            else:
-                processed.append(para)
-        
-        return processed
 
-    def convert_links_to_markdown(self, text: str, links: List[Dict]) -> str:
-        """Convert detected URLs to markdown-style links"""
-        for link in links:
-            url = link['url']
-            # Create a simple markdown link
-            if url in text:
-                # Try to find context for a better link text
-                link_text = self.get_link_context(url, text)
-                markdown_link = f"[{link_text}]({url})"
-                text = text.replace(url, markdown_link)
+
+
+    def clean_paragraph_text(self, text: str) -> str:
+        """Clean up paragraph text"""
+        # Remove hyphenation at line ends
+        text = re.sub(r'(\w+)-\s+(\w+)', r'\1\2', text)
+        
+        # Clean up whitespace
+        text = re.sub(r'\s+', ' ', text).strip()
+        
+        # Fix quotes
+        text = text.replace('"', '"').replace('"', '"')
+        text = text.replace(''', "'").replace(''', "'")
         
         return text
 
-    def get_link_context(self, url: str, text: str) -> str:
-        """Get meaningful context for a link"""
-        # Find the URL in text and get surrounding context
-        url_pos = text.find(url)
-        if url_pos == -1:
-            return url
-        
-        # Look for meaningful text before the URL
-        start = max(0, url_pos - 50)
-        before_text = text[start:url_pos].strip()
-        
-        # Extract last few words that might be descriptive
-        words = before_text.split()
-        if len(words) >= 2:
-            return ' '.join(words[-2:])
-        elif len(words) == 1:
-            return words[-1]
-        else:
-            # Fallback to domain name
-            try:
-                from urllib.parse import urlparse
-                domain = urlparse(url).netloc
-                return domain.replace('www.', '')
-            except:
-                return url
+    def format_content_to_html(self, paragraphs: List[str]) -> str:
+        """
+        Render HTML while ensuring the title (possibly spread over 1-3 very-short
+        paragraphs) is shown **once** at the top and never duplicated in the body.
 
-    def format_content_to_html(self, content: str) -> str:
-        """Convert text to well-formatted HTML"""
-        paragraphs = content.split('\n\n')
-        html_elements = []
-        
-        in_list = False
-        list_items = []
-        
+        Heuristic:
+          • Peel off consecutive leading paragraphs that
+              – are short (≤ 10 words) **and**
+              – do NOT end with a sentence terminator (. ! ?)
+
+            These lines are treated as the *title block*.
+          • Everything that follows is treated as normal body content.
+        """
+
+        if not paragraphs:
+            return ""
+
+        # --- 1. Collect the title block -----------------------------------------
+        title_parts = []
+        while paragraphs:
+            cand = paragraphs[0].strip()
+            word_cnt = len(cand.split())
+
+            if word_cnt > 10 or cand[-1] in ".!?":
+                break                           # reached the real body – stop peeling
+
+            # pop from list & add to title_parts
+            title_parts.append(paragraphs.pop(0).rstrip(":").strip())
+
+            # safeguard: don’t peel more than 3 little lines
+            if len(title_parts) == 3:
+                break
+
+        # fallback: if we accidentally peeled nothing, fall back to filename title
+        if not title_parts:
+            title_parts.append(
+                self.extract_title_from_filename(self.selected_pdf.name)
+            )
+
+        # Deduplicate exact repeats (e.g. “AZ Renaissance Festival” appears twice)
+        seen = set()
+        unique_parts = []
+        for p in title_parts:
+            key = p.lower()
+            if key not in seen:
+                unique_parts.append(p)
+                seen.add(key)
+
+        full_title = " – ".join(unique_parts)   # nice divider for multi-line titles
+
+        # --- 2. Build the HTML ---------------------------------------------------
+        html_elements: List[str] = []
+        html_elements.append(
+            f"                    <h3>{self.escape_html(full_title)}</h3>"
+        )
+
         for para in paragraphs:
             para = para.strip()
             if not para:
                 continue
-            
-            # Check if this is a list item
-            is_list_item = (
-                re.match(r'^[•\-\*]\s+', para) or 
-                re.match(r'^\d+[\.\)]\s+', para) or
-                re.match(r'^[a-zA-Z][\.\)]\s+', para)
-            )
-            
-            if is_list_item:
-                if not in_list:
-                    # Start a new list
-                    if list_items:  # Close previous list if any
-                        html_elements.append(self.format_list_items(list_items))
-                        list_items = []
-                    in_list = True
-                
-                # Clean up the list marker
-                clean_item = re.sub(r'^[•\-\*\d+a-zA-Z][\.\)]\s*', '', para)
-                list_items.append(clean_item)
-            
+            # keep your existing rule: very-short line ending with ':'  → sub-header
+            if para.endswith(':') and len(para) < 30:
+                html_elements.append(
+                    f"                    <h3>{self.escape_html(para.rstrip(':'))}</h3>"
+                )
             else:
-                # Not a list item
-                if in_list:
-                    # Close the current list
-                    html_elements.append(self.format_list_items(list_items))
-                    list_items = []
-                    in_list = False
-                
-                # Check if this might be a heading (using simple heuristics)
-                if len(para) < 100 and not para.endswith(('.', '!', '?', ',')):
-                    # Might be a heading
-                    html_elements.append(f"                    <h3>{para}</h3>")
-                else:
-                    # Regular paragraph - convert markdown links to HTML
-                    para_html = self.convert_markdown_links_to_html(para)
-                    html_elements.append(f"                    <p>{para_html}</p>")
-        
-        # Don't forget to close any remaining list
-        if in_list and list_items:
-            html_elements.append(self.format_list_items(list_items))
-        
-        return '\n\n'.join(html_elements)
+                html_elements.append(f"                    <p>{self.escape_html(para)}</p>")
 
-    def format_list_items(self, items: List[str]) -> str:
-        """Format list items as HTML"""
-        if not items:
-            return ""
-        
-        html_items = []
-        for item in items:
-            item_html = self.convert_markdown_links_to_html(item)
-            html_items.append(f"                        <li>{item_html}</li>")
-        
-        return "                    <ul>\n" + "\n".join(html_items) + "\n                    </ul>"
+        return "\n\n".join(html_elements)
 
-    def convert_markdown_links_to_html(self, text: str) -> str:
-        """Convert markdown-style links to HTML"""
-        # Pattern for [text](url)
-        link_pattern = r'\[([^\]]+)\]\(([^\)]+)\)'
-        
-        def replace_link(match):
-            link_text = match.group(1)
-            url = match.group(2)
-            return f'<a href="{url}" target="_blank" rel="noopener">{link_text}</a>'
-        
-        return re.sub(link_pattern, replace_link, text)
+    def escape_html(self, text: str) -> str:
+        """Escape HTML special characters"""
+        text = text.replace('&', '&amp;')
+        text = text.replace('<', '&lt;')
+        text = text.replace('>', '&gt;')
+        text = text.replace('"', '&quot;')
+        text = text.replace("'", '&#39;')
+        return text
 
     def generate_slug(self, title: str) -> str:
         """Generate URL-friendly slug"""
@@ -657,44 +350,28 @@ class MantoothBlogProcessor:
         title = ' '.join(word.capitalize() for word in title.split())
         return title
 
-    def generate_excerpt(self, content: str) -> str:
-        """Generate excerpt from content"""
+    def generate_excerpt(self, paragraphs: List[str]) -> str:
+        """Generate excerpt from paragraphs"""
         if not self.config.get('autoExcerpts', True):
             return "No excerpt generated."
         
         max_length = self.config.get('maxExcerptLength', 200)
         
-        # Remove HTML tags for excerpt
-        clean_content = re.sub(r'<[^>]+>', '', content)
-        paragraphs = [p.strip() for p in clean_content.split('\n\n') if len(p.strip()) > 50]
+        # Use first non-header paragraph
+        for para in paragraphs:
+            if not (para.endswith(':') and len(para) < 50):
+                if len(para) <= max_length:
+                    return para
+                else:
+                    excerpt = para[:max_length]
+                    last_space = excerpt.rfind(' ')
+                    if last_space > max_length * 0.8:
+                        excerpt = excerpt[:last_space]
+                    return excerpt + "..."
         
-        if paragraphs:
-            # Try to find a good paragraph that's not a header
-            for para in paragraphs:
-                if not re.match(r'^[A-Z][A-Z\s]+$', para) and para.endswith(('.', '!', '?')):
-                    if len(para) <= max_length:
-                        return para
-                    else:
-                        excerpt = para[:max_length]
-                        last_space = excerpt.rfind(' ')
-                        if last_space > max_length * 0.8:
-                            excerpt = excerpt[:last_space]
-                        return excerpt + "..."
-            
-            # Fallback to first paragraph
-            first_para = paragraphs[0]
-            if len(first_para) <= max_length:
-                return first_para
-            else:
-                excerpt = first_para[:max_length]
-                last_space = excerpt.rfind(' ')
-                if last_space > max_length * 0.8:
-                    excerpt = excerpt[:last_space]
-                return excerpt + "..."
-        
-        return clean_content[:max_length] + "..." if len(clean_content) > max_length else clean_content
+        return "No excerpt available."
 
-    def get_tags_from_user(self, title: str, content: str) -> List[str]:
+    def get_tags_from_user(self, title: str) -> List[str]:
         """Get tags from user input"""
         print("\n🏷️  TAG SELECTION")
         print("-" * 40)
@@ -702,9 +379,9 @@ class MantoothBlogProcessor:
         print("\nPlease enter tags for this blog post.")
         print("Separate multiple tags with commas (e.g., phoenix, food, restaurants)")
         print("\nSuggested tag categories:")
-        print("- Locations: phoenix, arizona, gatlinburg, los angeles")
+        print("- Locations: phoenix, arizona, gatlinburg, los angeles, nashville")
         print("- Activities: food, restaurants, cocktails, music, concerts, travel, hiking")
-        print("- General: lifestyle, events, reviews, pets")
+        print("- General: lifestyle, events, reviews, pets, cats")
         print("-" * 40)
         
         while True:
@@ -714,15 +391,13 @@ class MantoothBlogProcessor:
                 print("❌ Please enter at least one tag.")
                 continue
             
-            # Parse and clean tags
             tags = [tag.strip().lower() for tag in tags_input.split(',')]
-            tags = [tag for tag in tags if tag]  # Remove empty tags
+            tags = [tag for tag in tags if tag]
             
             if not tags:
                 print("❌ No valid tags entered. Please try again.")
                 continue
             
-            # Show what was entered
             print(f"\n✅ Tags selected: {', '.join(tags)}")
             
             confirm = input("Are these tags correct? (y/n): ").strip().lower()
@@ -731,8 +406,6 @@ class MantoothBlogProcessor:
                 return tags
             elif confirm in ['n', 'no']:
                 print("Let's try again...")
-            else:
-                print("Please enter 'y' for yes or 'n' for no")
 
     def generate_image_name(self, pdf_filename: str) -> str:
         """Generate image filename"""
@@ -751,69 +424,26 @@ class MantoothBlogProcessor:
         print(f"Tags: {', '.join(blog_data['tags'])}")
         print(f"Image: {blog_data['featured_image']}")
         print(f"Publish Date: {blog_data['formatted_date']}")
+        print(f"Paragraphs: {blog_data['paragraph_count']}")
         print()
         print("Excerpt:")
         print("-" * 40)
         print(blog_data['excerpt'])
         print()
         
-        # Show first few paragraphs of content
-        content_preview = blog_data['content'][:800]
-        if len(blog_data['content']) > 800:
-            content_preview += "..."
-        
-        print("Content Preview:")
+        # Show paragraph beginnings
+        print("Paragraph beginnings:")
         print("-" * 40)
-        # Remove HTML tags for preview
-        clean_preview = re.sub(r'<[^>]+>', '', content_preview)
-        print(clean_preview)
+        for i, para in enumerate(blog_data['paragraphs']):
+            print(f"\nParagraph {i+1}: {para[:80]}...")
         print("="*60)
         
         while True:
-            choice = input("\nGenerate this blog? (y/n/e to edit): ").strip().lower()
+            choice = input("\nGenerate this blog? (y/n): ").strip().lower()
             if choice in ['y', 'yes']:
                 return True
             elif choice in ['n', 'no']:
                 return False
-            elif choice in ['e', 'edit']:
-                self.edit_blog_data(blog_data)
-                return True
-            else:
-                print("Please enter 'y' for yes, 'n' for no, or 'e' to edit")
-
-    def edit_blog_data(self, blog_data: Dict):
-        """Allow user to edit blog data before generation"""
-        print("\n📝 Edit Blog Data:")
-        print("(Press Enter to keep current value)")
-        
-        # Edit title
-        new_title = input(f"Title [{blog_data['title']}]: ").strip()
-        if new_title:
-            blog_data['title'] = new_title
-            blog_data['slug'] = self.generate_slug(new_title)
-        
-        # Edit tags
-        current_tags = ', '.join(blog_data['tags'])
-        print(f"\nCurrent tags: {current_tags}")
-        print("Enter new tags separated by commas, or press Enter to keep current tags")
-        new_tags = input("Tags: ").strip()
-        if new_tags:
-            blog_data['tags'] = [tag.strip().lower() for tag in new_tags.split(',')]
-            blog_data['tags'] = [tag for tag in blog_data['tags'] if tag]  # Remove empty
-        
-        # Edit excerpt
-        print(f"\nCurrent excerpt:\n{blog_data['excerpt']}")
-        new_excerpt = input("\nNew excerpt (or press Enter to keep): ").strip()
-        if new_excerpt:
-            blog_data['excerpt'] = new_excerpt
-        
-        # Edit image filename
-        new_image = input(f"\nImage filename [{blog_data['featured_image']}]: ").strip()
-        if new_image:
-            # Ensure it ends with an image extension
-            if not re.search(r'\.(png|jpg|jpeg|gif|webp)$', new_image, re.IGNORECASE):
-                new_image += '.png'
-            blog_data['featured_image'] = new_image
 
     def create_blog_html(self, blog_data: Dict) -> str:
         """Generate blog HTML file"""
@@ -900,7 +530,6 @@ class MantoothBlogProcessor:
             with open(self.blogs_html_path, 'r', encoding='utf-8') as f:
                 content = f.read()
             
-            # Find blogs-grid section
             grid_start = content.find('<section class="blogs-grid">')
             grid_end = content.find('</section>', grid_start)
             
@@ -908,7 +537,6 @@ class MantoothBlogProcessor:
                 self.log("❌ Could not find blogs-grid section", "ERROR")
                 return False
             
-            # Generate new blog item
             item_html = f'''                <!-- Blog Post - {blog_data['title']} -->
                 <article class="blog-item clickable-card" data-tags="{','.join(blog_data['tags'])}" data-url="assests/Blogs/{blog_data['slug']}.html">
                     <img src="assests/Images/{blog_data['featured_image']}" alt="{blog_data['title']}">
@@ -924,7 +552,6 @@ class MantoothBlogProcessor:
                     </div>
                 </article>'''
             
-            # Insert new item at beginning of grid
             existing_section = content[grid_start:grid_end + 10]
             insertion_point = existing_section.find('>', existing_section.find('<section class="blogs-grid">')) + 1
             
@@ -932,7 +559,6 @@ class MantoothBlogProcessor:
                                 '\n' + item_html + '\n                \n' + 
                                 existing_section[insertion_point:])
             
-            # Replace in full content
             updated_html = content[:grid_start] + updated_section + content[grid_end + 10:]
             
             with open(self.blogs_html_path, 'w', encoding='utf-8') as f:
@@ -947,25 +573,25 @@ class MantoothBlogProcessor:
 
     def process_single_pdf(self, pdf_path: Path) -> bool:
         """Process a single PDF file"""
+        self.selected_pdf = pdf_path
         self.log(f"🔄 Processing {pdf_path.name}")
         
-        # Extract text and metadata
+        # Extract text
         extraction_result = self.extract_text_from_pdf(pdf_path)
         if not extraction_result:
             return False
         
-        # Use enhanced text cleaning with font analysis
-        cleaned_text = self.clean_and_format_text_enhanced(extraction_result)
+        paragraphs = extraction_result['paragraphs']
         
         # Extract title and generate initial data
         title = self.extract_title_from_filename(pdf_path.name)
         slug = self.generate_slug(title)
-        content_html = self.format_content_to_html(cleaned_text)
-        excerpt = self.generate_excerpt(content_html)
+        content_html = self.format_content_to_html(paragraphs)
+        excerpt = self.generate_excerpt(paragraphs)
         featured_image = self.generate_image_name(pdf_path.name)
         
         # Get tags from user
-        tags = self.get_tags_from_user(title, cleaned_text)
+        tags = self.get_tags_from_user(title)
         
         # Prepare blog data
         blog_data = {
@@ -977,8 +603,9 @@ class MantoothBlogProcessor:
             'featured_image': featured_image,
             'publish_date': datetime.now().strftime("%Y-%m-%d"),
             'formatted_date': datetime.now().strftime("%B %d, %Y"),
-            'links_found': len(extraction_result.get('links', [])),
-            'source_file': pdf_path.name
+            'source_file': pdf_path.name,
+            'paragraphs': paragraphs,
+            'paragraph_count': len(paragraphs)
         }
         
         # Show preview and get confirmation
@@ -1012,11 +639,6 @@ class MantoothBlogProcessor:
             print(f"📄 File: {blog_file_path}")
             print(f"🖼️  Image needed: {featured_image}")
             print(f"🏷️  Tags: {', '.join(tags)}")
-            if extraction_result.get('links'):
-                print(f"🔗 Links found: {len(extraction_result['links'])}")
-            
-            # Show paragraph statistics
-            paragraphs = cleaned_text.split('\n\n')
             print(f"📊 Paragraphs detected: {len(paragraphs)}")
             
             return True
@@ -1048,7 +670,7 @@ class MantoothBlogProcessor:
                     "createdAt": datetime.now().isoformat(),
                     "source": "PDF Processing",
                     "sourceFile": blog.get('source_file', ''),
-                    "linksFound": blog.get('links_found', 0)
+                    "paragraphCount": blog.get('paragraph_count', 0)
                 }
                 data["posts"].insert(0, post_data)
             
@@ -1066,10 +688,10 @@ class MantoothBlogProcessor:
         text = re.sub(r'<[^>]+>', '', content)
         words = len(text.split())
         return max(1, round(words / 200))
-
+    
     def run_interactive(self):
         """Main interactive processing loop"""
-        print("🦷 Mantooth Blog Processor - Interactive Mode")
+        print("🦷 Mantooth Blog Processor - Balanced Paragraph Detection")
         print("=" * 50)
         
         while True:
@@ -1082,7 +704,6 @@ class MantoothBlogProcessor:
             success = self.process_single_pdf(pdf_path)
             
             if success:
-                # Ask if user wants to process another
                 while True:
                     continue_choice = input("\nProcess another PDF? (y/n): ").strip().lower()
                     if continue_choice in ['y', 'yes']:
