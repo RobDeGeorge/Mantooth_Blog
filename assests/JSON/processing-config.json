@@ -1,0 +1,21 @@
+{
+  "autoTags": true,
+  "autoExcerpts": true,
+  "updateBlogsPage": true,
+  "maxExcerptLength": 200,
+  "maxTagsPerPost": 6,
+  "defaultImageFormat": "png",
+  "processingOptions": {
+    "cleanText": true,
+    "generateSlugs": true,
+    "formatHTML": true,
+    "updateMetadata": true
+  },
+  "paths": {
+    "rawBlogsDir": "assests/Blogs/Raw Blogs",
+    "outputBlogsDir": "assests/Blogs",
+    "imagesDir": "assests/Images",
+    "jsonDir": "assests/JSON"
+  },
+  "lastUpdated": "2025-06-10T19:48:56.127389"
+}

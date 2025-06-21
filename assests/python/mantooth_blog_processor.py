@@ -162,7 +162,7 @@ class MantoothBlogProcessor:
                     if text:
                         # Add page separator
                         if page_num > 1:
-                            full_text += "\n\n"
+                            full_text += " "
                         full_text += text
                 
                 if not full_text.strip():
