@@ -30,17 +30,19 @@ class MantoothBlogProcessor:
         print(f"✅ Project root found: {self.project_root}")
         
         # Define paths
-        self.raw_blogs_dir = self.project_root / "assests" / "Blogs" / "Raw Blogs"
-        self.blogs_dir = self.project_root / "assests" / "Blogs"
-        self.images_dir = self.project_root / "assests" / "Images"
-        self.json_dir = self.project_root / "assests" / "JSON"
+        self.raw_blogs_dir = self.project_root / "blog-processor" / "input"
+        self.blogs_dir = self.project_root / "blog-processor" / "output"
+        self.blog_images_dir = self.project_root / "blog-processor" / "images"
+        self.website_images_dir = self.project_root / "website" / "assets" / "images"
+        self.json_dir = self.project_root / "website" / "assets" / "data"
         
-        self.blogs_html_path = self.project_root / "blogs.html"
+        self.blogs_html_path = self.project_root / "website" / "blogs.html"
         self.config_path = self.json_dir / "processing-config.json"
         self.blog_data_path = self.json_dir / "blog-data.json"
         
         # Create directories if needed
         self.blogs_dir.mkdir(parents=True, exist_ok=True)
+        self.blog_images_dir.mkdir(parents=True, exist_ok=True)
         self.json_dir.mkdir(parents=True, exist_ok=True)
         
         # Load configuration
@@ -66,10 +68,12 @@ class MantoothBlogProcessor:
         ])
         
         for root in search_paths:
-            if (root / "blogs.html").exists() and (root / "assests").exists():
+            if (root / "website" / "blogs.html").exists() and (root / "website" / "assets").exists():
                 return root
-            elif (root / "assests" / "Blogs").exists() and (root / "index.html").exists():
+            elif (root / "website" / "index.html").exists() and (root / "blog-processor").exists():
                 return root
+            elif (root / "blogs.html").exists() and (root / "assests").exists():
+                return root  # Fallback for old structure
         
         return None
 
@@ -229,13 +233,14 @@ class MantoothBlogProcessor:
             paragraphs.append(self.clean_paragraph_text(" ".join(current)))
 
         # Optional fix — remove duplicate title if it was embedded in the first paragraph
-        filename_title = self.extract_title_from_filename(self.selected_pdf.name).rstrip(":").lower()
-        if paragraphs:
-            first = paragraphs[0]
-            if first.lower().startswith(filename_title):
-                trimmed = first[len(filename_title):].lstrip(": ").strip()
-                if trimmed:
-                    paragraphs[0] = trimmed
+        if hasattr(self, 'selected_pdf') and self.selected_pdf:
+            filename_title = self.extract_title_from_filename(self.selected_pdf.name).rstrip(":").lower()
+            if paragraphs:
+                first = paragraphs[0]
+                if first.lower().startswith(filename_title):
+                    trimmed = first[len(filename_title):].lstrip(": ").strip()
+                    if trimmed:
+                        paragraphs[0] = trimmed
 
         return paragraphs
 
@@ -291,9 +296,12 @@ class MantoothBlogProcessor:
 
         # fallback: if we accidentally peeled nothing, fall back to filename title
         if not title_parts:
-            title_parts.append(
-                self.extract_title_from_filename(self.selected_pdf.name)
-            )
+            if hasattr(self, 'selected_pdf') and self.selected_pdf:
+                title_parts.append(
+                    self.extract_title_from_filename(self.selected_pdf.name)
+                )
+            else:
+                title_parts.append("Blog Post")
 
         # Deduplicate exact repeats (e.g. “AZ Renaissance Festival” appears twice)
         seen = set()
@@ -407,12 +415,33 @@ class MantoothBlogProcessor:
             elif confirm in ['n', 'no']:
                 print("Let's try again...")
 
-    def generate_image_name(self, pdf_filename: str) -> str:
-        """Generate image filename"""
-        base_name = pdf_filename.replace('.pdf', '').lower()
-        base_name = re.sub(r'[^a-z0-9]', '_', base_name)
-        base_name = re.sub(r'_+', '_', base_name).strip('_')
-        return f"{base_name}_blog.png"
+    def find_matching_image(self, pdf_filename: str) -> Optional[str]:
+        """Find matching image file for PDF"""
+        base_name = pdf_filename.replace('.pdf', '')
+        
+        # Try different naming patterns
+        possible_names = [
+            f"{base_name}.png",
+            f"{base_name}.jpg", 
+            f"{base_name}.jpeg",
+            f"{base_name.lower().replace(' ', '_')}.png",
+            f"{base_name.lower().replace(' ', '_')}.jpg",
+            f"{base_name.lower().replace(' ', '_')}.jpeg",
+            f"{base_name.lower().replace(' ', '-')}.png",
+            f"{base_name.lower().replace(' ', '-')}.jpg",
+            f"{base_name.lower().replace(' ', '-')}.jpeg"
+        ]
+        
+        for name in possible_names:
+            image_path = self.blog_images_dir / name
+            if image_path.exists():
+                self.log(f"✅ Found matching image: {name}")
+                return name
+        
+        # Fallback to generated name
+        fallback_name = f"{base_name.lower().replace(' ', '_')}_blog.png"
+        self.log(f"⚠️  No matching image found, will use: {fallback_name}")
+        return fallback_name
 
     def preview_blog_content(self, blog_data: Dict) -> bool:
         """Show a preview and ask for confirmation"""
@@ -453,7 +482,7 @@ class MantoothBlogProcessor:
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{title} - Mantooth</title>
-    <link rel="stylesheet" href="../CSS/style.css">
+    <link rel="stylesheet" href="../../website/assets/css/style.css">
 </head>
 <body>
     <header>
@@ -461,10 +490,10 @@ class MantoothBlogProcessor:
             <h1 class="logo">Mantooth</h1>
             <nav>
                 <ul>
-                    <li><a href="../../index.html">Home</a></li>
-                    <li><a href="../../blogs.html" class="active">Blogs</a></li>
-                    <li><a href="../../about.html">About</a></li>
-                    <li><a href="../../contact.html">Contact</a></li>
+                    <li><a href="../../website/index.html">Home</a></li>
+                    <li><a href="../../website/blogs.html" class="active">Blogs</a></li>
+                    <li><a href="../../website/about.html">About</a></li>
+                    <li><a href="../../website/contact.html">Contact</a></li>
                 </ul>
             </nav>
         </div>
@@ -476,7 +505,7 @@ class MantoothBlogProcessor:
                 <h2 class="blog-title">{title}</h2>
                 <p class="post-meta">Posted on {formatted_date}</p>
                 
-                <img src="../Images/{featured_image}" alt="{title}" class="blog-featured-image">
+                <img src="../images/{featured_image}" alt="{title}" class="blog-featured-image">
                 
                 <div class="blog-content">
 {content}
@@ -500,7 +529,7 @@ class MantoothBlogProcessor:
         </div>
     </footer>
 
-    <script src="../JS/clickable-cards.js"></script>
+    <script src="../../website/assets/js/clickable-cards.js"></script>
 </body>
 </html>'''
         
@@ -538,8 +567,8 @@ class MantoothBlogProcessor:
                 return False
             
             item_html = f'''                <!-- Blog Post - {blog_data['title']} -->
-                <article class="blog-item clickable-card" data-tags="{','.join(blog_data['tags'])}" data-url="assests/Blogs/{blog_data['slug']}.html">
-                    <img src="assests/Images/{blog_data['featured_image']}" alt="{blog_data['title']}">
+                <article class="blog-item clickable-card" data-tags="{','.join(blog_data['tags'])}" data-url="blog-processor/output/{blog_data['slug']}.html">
+                    <img src="blog-processor/images/{blog_data['featured_image']}" alt="{blog_data['title']}">
                     <div class="blog-content">
                         <h3>{blog_data['title']}</h3>
                         <p class="post-meta">Posted on {blog_data['formatted_date']}</p>
@@ -571,9 +600,32 @@ class MantoothBlogProcessor:
             self.log(f"❌ Error updating blogs.html: {e}", "ERROR")
             return False
 
-    def process_single_pdf(self, pdf_path: Path) -> bool:
+    def is_pdf_already_processed(self, pdf_path: Path) -> bool:
+        """Check if PDF has already been processed"""
+        title = self.extract_title_from_filename(pdf_path.name)
+        slug = self.generate_slug(title)
+        
+        # Check if blog data exists
+        if self.blog_data_path.exists():
+            try:
+                with open(self.blog_data_path, 'r', encoding='utf-8') as f:
+                    data = json.load(f)
+                    
+                existing_slugs = {post.get("slug", "") for post in data.get("posts", [])}
+                return slug in existing_slugs
+            except Exception:
+                return False
+        return False
+    
+    def process_single_pdf(self, pdf_path: Path, force_overwrite: bool = False) -> bool:
         """Process a single PDF file"""
         self.selected_pdf = pdf_path
+        
+        # Check if already processed
+        if not force_overwrite and self.is_pdf_already_processed(pdf_path):
+            self.log(f"⚠️  {pdf_path.name} already processed - skipping")
+            return True
+        
         self.log(f"🔄 Processing {pdf_path.name}")
         
         # Extract text
@@ -588,7 +640,7 @@ class MantoothBlogProcessor:
         slug = self.generate_slug(title)
         content_html = self.format_content_to_html(paragraphs)
         excerpt = self.generate_excerpt(paragraphs)
-        featured_image = self.generate_image_name(pdf_path.name)
+        featured_image = self.find_matching_image(pdf_path.name)
         
         # Get tags from user
         tags = self.get_tags_from_user(title)
@@ -624,10 +676,10 @@ class MantoothBlogProcessor:
             self.log(f"✅ Created: {blog_file_path}")
             
             # Check if image exists
-            image_path = self.images_dir / featured_image
+            image_path = self.blog_images_dir / featured_image
             if not image_path.exists():
                 self.log(f"⚠️  Image needed: {featured_image}")
-                print(f"💡 Add image to: {self.images_dir / featured_image}")
+                print(f"💡 Add image to: {self.blog_images_dir / featured_image}")
             
             # Update blogs.html
             self.update_blogs_html(blog_data)
@@ -689,11 +741,95 @@ class MantoothBlogProcessor:
         words = len(text.split())
         return max(1, round(words / 200))
     
+    def process_all_pdfs(self):
+        """Process all PDFs in the Raw Blogs folder"""
+        print("🦷 Mantooth Blog Processor - Batch Mode")
+        print("=" * 50)
+        
+        pdfs = self.list_available_pdfs()
+        
+        if not pdfs:
+            print(f"\n❌ No PDF files found in {self.raw_blogs_dir}")
+            print(f"💡 Please add PDF files to process")
+            return
+        
+        print(f"\n📂 Found {len(pdfs)} PDF files to process:")
+        for i, pdf in enumerate(pdfs, 1):
+            size_mb = pdf.stat().st_size / (1024 * 1024)
+            print(f"  {i}. {pdf.name} ({size_mb:.1f} MB)")
+        
+        print("\n" + "="*50)
+        proceed = input(f"Process all {len(pdfs)} PDFs? (y/n): ").strip().lower()
+        if proceed not in ['y', 'yes']:
+            print("❌ Processing cancelled")
+            return
+        
+        print("\n🚀 Starting batch processing...\n")
+        
+        success_count = 0
+        failed_count = 0
+        
+        for i, pdf_path in enumerate(pdfs, 1):
+            print(f"\n📄 Processing {i}/{len(pdfs)}: {pdf_path.name}")
+            print("-" * 40)
+            
+            try:
+                success = self.process_single_pdf(pdf_path)
+                if success:
+                    success_count += 1
+                    print(f"✅ Successfully processed: {pdf_path.name}")
+                else:
+                    failed_count += 1
+                    print(f"❌ Failed to process: {pdf_path.name}")
+                    
+            except Exception as e:
+                failed_count += 1
+                self.log(f"❌ Error processing {pdf_path.name}: {e}", "ERROR")
+                
+            # Small delay between processing
+            if i < len(pdfs):
+                print("\n" + "⏳ Moving to next PDF...")
+        
+        print("\n" + "="*60)
+        print("📊 BATCH PROCESSING COMPLETE")
+        print("="*60)
+        print(f"✅ Successfully processed: {success_count}")
+        print(f"❌ Failed: {failed_count}")
+        print(f"📈 Total: {len(pdfs)}")
+        
+        if success_count > 0:
+            print(f"\n🎉 Generated {success_count} new blog posts!")
+            print(f"📁 Check your website's blog section")
+    
     def run_interactive(self):
-        """Main interactive processing loop"""
+        """Main processing loop with mode selection"""
         print("🦷 Mantooth Blog Processor - Balanced Paragraph Detection")
         print("=" * 50)
         
+        pdfs = self.list_available_pdfs()
+        if not pdfs:
+            print(f"\n❌ No PDF files found in {self.raw_blogs_dir}")
+            print(f"💡 Please add PDF files to process")
+            return
+        
+        print(f"\n📂 Found {len(pdfs)} PDF files")
+        print("\nChoose processing mode:")
+        print("1. Process all PDFs (Recommended)")
+        print("2. Select individual PDFs")
+        
+        while True:
+            choice = input("\nSelect mode (1 or 2): ").strip()
+            if choice == "1":
+                self.process_all_pdfs()
+                break
+            elif choice == "2":
+                self.run_single_mode()
+                break
+            else:
+                print("❌ Please enter 1 or 2")
+    
+    def run_single_mode(self):
+        """Single PDF interactive mode"""
         while True:
             pdf_path = self.select_pdf_interactive()
             

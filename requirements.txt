@@ -1,0 +1,3 @@
+# Mantooth Blog Processor Requirements
+pdfplumber>=0.9.0
+PySide6>=6.5.0
