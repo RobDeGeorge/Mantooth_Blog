@@ -30,9 +30,9 @@ class MantoothBlogProcessor:
         print(f"✅ Project root found: {self.project_root}")
         
         # Define paths
-        self.raw_blogs_dir = self.project_root / "blog-processor" / "input"
-        self.blogs_dir = self.project_root / "blog-processor" / "output"
-        self.blog_images_dir = self.project_root / "blog-processor" / "images"
+        self.raw_blogs_dir = self.project_root / "website" / "blog-processor" / "input"
+        self.blogs_dir = self.project_root / "website" / "blog-processor" / "output"
+        self.blog_images_dir = self.project_root / "website" / "blog-processor" / "images"
         self.website_images_dir = self.project_root / "website" / "assets" / "images"
         self.json_dir = self.project_root / "website" / "assets" / "data"
         
@@ -70,7 +70,7 @@ class MantoothBlogProcessor:
         for root in search_paths:
             if (root / "website" / "blogs.html").exists() and (root / "website" / "assets").exists():
                 return root
-            elif (root / "website" / "index.html").exists() and (root / "blog-processor").exists():
+            elif (root / "website" / "index.html").exists() and (root / "website" / "blog-processor").exists():
                 return root
             elif (root / "blogs.html").exists() and (root / "assests").exists():
                 return root  # Fallback for old structure
@@ -415,33 +415,65 @@ class MantoothBlogProcessor:
             elif confirm in ['n', 'no']:
                 print("Let's try again...")
 
-    def find_matching_image(self, pdf_filename: str) -> Optional[str]:
-        """Find matching image file for PDF"""
-        base_name = pdf_filename.replace('.pdf', '')
+    def list_available_images(self) -> List[str]:
+        """List all available image files in the blog images directory"""
+        if not self.blog_images_dir.exists():
+            return []
         
-        # Try different naming patterns
-        possible_names = [
-            f"{base_name}.png",
-            f"{base_name}.jpg", 
-            f"{base_name}.jpeg",
-            f"{base_name.lower().replace(' ', '_')}.png",
-            f"{base_name.lower().replace(' ', '_')}.jpg",
-            f"{base_name.lower().replace(' ', '_')}.jpeg",
-            f"{base_name.lower().replace(' ', '-')}.png",
-            f"{base_name.lower().replace(' ', '-')}.jpg",
-            f"{base_name.lower().replace(' ', '-')}.jpeg"
-        ]
+        image_extensions = ['*.png', '*.jpg', '*.jpeg', '*.gif', '*.webp']
+        images = []
         
-        for name in possible_names:
-            image_path = self.blog_images_dir / name
-            if image_path.exists():
-                self.log(f"✅ Found matching image: {name}")
-                return name
+        for ext in image_extensions:
+            images.extend(self.blog_images_dir.glob(ext))
+            images.extend(self.blog_images_dir.glob(ext.upper()))
         
-        # Fallback to generated name
-        fallback_name = f"{base_name.lower().replace(' ', '_')}_blog.png"
-        self.log(f"⚠️  No matching image found, will use: {fallback_name}")
-        return fallback_name
+        return [img.name for img in sorted(images)]
+
+    def select_image_interactive(self, title: str) -> str:
+        """Interactive image selection from available images"""
+        available_images = self.list_available_images()
+        
+        if not available_images:
+            print(f"\n⚠️  No images found in {self.blog_images_dir}")
+            print("💡 Please add images to the blog-processor/images/ folder")
+            default_name = f"{title.lower().replace(' ', '_')}_blog.png"
+            print(f"💡 Will use placeholder: {default_name}")
+            return default_name
+        
+        print(f"\n🖼️  IMAGE SELECTION")
+        print("-" * 50)
+        print(f"Blog Title: {title}")
+        print(f"\nFound {len(available_images)} images in {self.blog_images_dir.name}/:")
+        print("=" * 40)
+        
+        for i, image in enumerate(available_images, 1):
+            image_path = self.blog_images_dir / image
+            size_kb = image_path.stat().st_size / 1024
+            modified = datetime.fromtimestamp(image_path.stat().st_mtime).strftime("%Y-%m-%d %H:%M")
+            
+            print(f"{i:2d}. {image}")
+            print(f"    📊 Size: {size_kb:.1f} KB | Modified: {modified}")
+        
+        print("=" * 40)
+        
+        while True:
+            try:
+                choice = input(f"\nSelect an image (1-{len(available_images)}): ").strip()
+                
+                index = int(choice) - 1
+                if 0 <= index < len(available_images):
+                    selected = available_images[index]
+                    print(f"\n✅ Selected image: {selected}")
+                    return selected
+                else:
+                    print(f"❌ Please enter a number between 1 and {len(available_images)}")
+            
+            except ValueError:
+                print("❌ Please enter a valid number")
+            except KeyboardInterrupt:
+                print("\n\n👋 Using default placeholder image")
+                default_name = f"{title.lower().replace(' ', '_')}_blog.png"
+                return default_name
 
     def preview_blog_content(self, blog_data: Dict) -> bool:
         """Show a preview and ask for confirmation"""
@@ -482,7 +514,7 @@ class MantoothBlogProcessor:
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{title} - Mantooth</title>
-    <link rel="stylesheet" href="../../website/assets/css/style.css">
+    <link rel="stylesheet" href="../../assets/css/style.css">
 </head>
 <body>
     <header>
@@ -490,10 +522,10 @@ class MantoothBlogProcessor:
             <h1 class="logo">Mantooth</h1>
             <nav>
                 <ul>
-                    <li><a href="../../website/index.html">Home</a></li>
-                    <li><a href="../../website/blogs.html" class="active">Blogs</a></li>
-                    <li><a href="../../website/about.html">About</a></li>
-                    <li><a href="../../website/contact.html">Contact</a></li>
+                    <li><a href="../../index.html">Home</a></li>
+                    <li><a href="../../blogs.html" class="active">Blogs</a></li>
+                    <li><a href="../../about.html">About</a></li>
+                    <li><a href="../../contact.html">Contact</a></li>
                 </ul>
             </nav>
         </div>
@@ -529,7 +561,7 @@ class MantoothBlogProcessor:
         </div>
     </footer>
 
-    <script src="../../website/assets/js/clickable-cards.js"></script>
+    <script src="../../assets/js/clickable-cards.js"></script>
 </body>
 </html>'''
         
@@ -640,10 +672,12 @@ class MantoothBlogProcessor:
         slug = self.generate_slug(title)
         content_html = self.format_content_to_html(paragraphs)
         excerpt = self.generate_excerpt(paragraphs)
-        featured_image = self.find_matching_image(pdf_path.name)
         
         # Get tags from user
         tags = self.get_tags_from_user(title)
+        
+        # Get image selection from user
+        featured_image = self.select_image_interactive(title)
         
         # Prepare blog data
         blog_data = {
@@ -816,17 +850,156 @@ class MantoothBlogProcessor:
         print("\nChoose processing mode:")
         print("1. Process all PDFs (Recommended)")
         print("2. Select individual PDFs")
+        print("3. Edit existing blog images")
         
         while True:
-            choice = input("\nSelect mode (1 or 2): ").strip()
+            choice = input("\nSelect mode (1, 2, or 3): ").strip()
             if choice == "1":
                 self.process_all_pdfs()
                 break
             elif choice == "2":
                 self.run_single_mode()
                 break
+            elif choice == "3":
+                self.edit_blog_images()
+                break
             else:
-                print("❌ Please enter 1 or 2")
+                print("❌ Please enter 1, 2, or 3")
+    
+    def edit_blog_images(self):
+        """Edit images for existing blog posts"""
+        print("\n🖼️  EDIT BLOG IMAGES")
+        print("=" * 50)
+        
+        # Load existing blog data
+        if not self.blog_data_path.exists():
+            print("❌ No blog data found. Please process some PDFs first.")
+            return
+        
+        try:
+            with open(self.blog_data_path, 'r', encoding='utf-8') as f:
+                data = json.load(f)
+        except Exception as e:
+            print(f"❌ Error loading blog data: {e}")
+            return
+        
+        posts = data.get("posts", [])
+        if not posts:
+            print("❌ No blog posts found.")
+            return
+        
+        print(f"\nFound {len(posts)} blog posts:")
+        print("-" * 40)
+        
+        for i, post in enumerate(posts, 1):
+            print(f"{i:2d}. {post['title']}")
+            print(f"    Current image: {post['featuredImage']}")
+            print(f"    Published: {post['publishDate']}")
+        
+        print("-" * 40)
+        
+        while True:
+            try:
+                choice = input(f"\nSelect a blog to edit image (1-{len(posts)}) or 'q' to quit: ").strip()
+                
+                if choice.lower() == 'q':
+                    return
+                
+                index = int(choice) - 1
+                if 0 <= index < len(posts):
+                    selected_post = posts[index]
+                    break
+                else:
+                    print(f"❌ Please enter a number between 1 and {len(posts)}")
+            
+            except ValueError:
+                print("❌ Please enter a valid number or 'q' to quit")
+            except KeyboardInterrupt:
+                print("\n\n👋 Goodbye!")
+                return
+        
+        # Select new image
+        new_image = self.select_image_interactive(selected_post['title'])
+        
+        # Update the post data
+        old_image = selected_post['featuredImage']
+        selected_post['featuredImage'] = new_image
+        data['lastUpdated'] = datetime.now().isoformat()
+        
+        # Save updated data
+        try:
+            with open(self.blog_data_path, 'w', encoding='utf-8') as f:
+                json.dump(data, f, indent=2)
+            
+            # Update the blogs.html file
+            self.update_blogs_html_image(selected_post['slug'], old_image, new_image)
+            
+            # Update the individual blog HTML file
+            self.update_blog_post_image(selected_post['slug'], new_image)
+            
+            print(f"\n✅ Updated '{selected_post['title']}' image from '{old_image}' to '{new_image}'")
+            print(f"📄 Updated blog data, blogs.html, and individual blog post")
+            
+        except Exception as e:
+            print(f"❌ Error saving changes: {e}")
+
+    def update_blogs_html_image(self, slug: str, old_image: str, new_image: str):
+        """Update image reference in blogs.html"""
+        try:
+            with open(self.blogs_html_path, 'r', encoding='utf-8') as f:
+                content = f.read()
+            
+            # Find and replace the image reference for this specific blog
+            old_src = f'src="blog-processor/images/{old_image}"'
+            new_src = f'src="blog-processor/images/{new_image}"'
+            
+            # Look for the specific blog article containing this slug
+            slug_pattern = f'data-url="blog-processor/output/{slug}.html"'
+            
+            if slug_pattern in content:
+                # Find the article block and update the image within it
+                article_start = content.find(slug_pattern)
+                if article_start != -1:
+                    # Find the start of this article
+                    article_start = content.rfind('<article', 0, article_start)
+                    # Find the end of this article
+                    article_end = content.find('</article>', article_start) + len('</article>')
+                    
+                    if article_start != -1 and article_end != -1:
+                        article_content = content[article_start:article_end]
+                        updated_article = article_content.replace(old_src, new_src)
+                        content = content[:article_start] + updated_article + content[article_end:]
+            
+            with open(self.blogs_html_path, 'w', encoding='utf-8') as f:
+                f.write(content)
+                
+        except Exception as e:
+            print(f"⚠️  Warning: Could not update blogs.html: {e}")
+
+    def update_blog_post_image(self, slug: str, new_image: str):
+        """Update image reference in individual blog post HTML"""
+        blog_file_path = self.blogs_dir / f"{slug}.html"
+        
+        if not blog_file_path.exists():
+            print(f"⚠️  Warning: Blog file {blog_file_path} not found")
+            return
+        
+        try:
+            with open(blog_file_path, 'r', encoding='utf-8') as f:
+                content = f.read()
+            
+            # Update the featured image src
+            import re
+            pattern = r'<img src="../images/[^"]*" alt="[^"]*" class="blog-featured-image">'
+            replacement = f'<img src="../images/{new_image}" alt="" class="blog-featured-image">'
+            
+            updated_content = re.sub(pattern, replacement, content)
+            
+            with open(blog_file_path, 'w', encoding='utf-8') as f:
+                f.write(updated_content)
+                
+        except Exception as e:
+            print(f"⚠️  Warning: Could not update {blog_file_path}: {e}")
     
     def run_single_mode(self):
         """Single PDF interactive mode"""

@@ -4,8 +4,8 @@ const fs = require('fs');
 
 class BlogProcessorBridge {
     constructor() {
-        this.pythonScript = path.join(__dirname, 'mantooth_blog_processor.py');
-        this.projectRoot = path.dirname(__dirname);
+        this.pythonScript = path.join(__dirname, '..', 'blog-processor', 'src', 'main.py');
+        this.projectRoot = path.dirname(path.dirname(__dirname));
     }
 
     async processPDFs() {

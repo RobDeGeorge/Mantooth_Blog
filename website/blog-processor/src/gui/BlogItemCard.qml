@@ -53,7 +53,7 @@ Rectangle {
                     if (imageName.includes("/")) {
                         imageName = imageName.split("/").pop()
                     }
-                    return "file://" + blogBackend.getProjectRoot() + "/blog-processor/images/" + imageName
+                    return "file://" + blogBackend.getProjectRoot() + "/website/blog-processor/images/" + imageName
                 }
                 
                 Rectangle {
@@ -67,6 +67,113 @@ Rectangle {
                         horizontalAlignment: Text.AlignHCenter
                         color: Material.color(Material.Grey, Material.Shade600)
                         font.pixelSize: 12
+                    }
+                }
+                
+                MouseArea {
+                    anchors.fill: parent
+                    onClicked: imageSelectionPopup.open()
+                }
+            }
+            
+            // Image selection popup
+            Popup {
+                id: imageSelectionPopup
+                width: 400
+                height: 500
+                x: (parent.width - width) / 2
+                y: (parent.height - height) / 2
+                modal: true
+                focus: true
+                
+                Rectangle {
+                    anchors.fill: parent
+                    color: "white"
+                    border.color: Material.color(Material.Grey, Material.Shade300)
+                    border.width: 1
+                    radius: 8
+                    
+                    ColumnLayout {
+                        anchors.fill: parent
+                        anchors.margins: 20
+                        spacing: 15
+                        
+                        Text {
+                            text: "Select Image for: " + (blogItem ? blogItem.title : "")
+                            font.pixelSize: 16
+                            font.bold: true
+                            Layout.fillWidth: true
+                        }
+                        
+                        ScrollView {
+                            Layout.fillWidth: true
+                            Layout.fillHeight: true
+                            clip: true
+                            
+                            ListView {
+                                id: imageListView
+                                model: blogBackend.getAvailableImages()
+                                spacing: 8
+                                
+                                delegate: Rectangle {
+                                    width: imageListView.width
+                                    height: 80
+                                    color: imageMouseArea.containsMouse ? Material.color(Material.Blue, Material.Shade50) : "transparent"
+                                    border.color: Material.color(Material.Grey, Material.Shade200)
+                                    border.width: 1
+                                    radius: 4
+                                    
+                                    RowLayout {
+                                        anchors.fill: parent
+                                        anchors.margins: 10
+                                        spacing: 15
+                                        
+                                        Image {
+                                            Layout.preferredWidth: 60
+                                            Layout.preferredHeight: 60
+                                            fillMode: Image.PreserveAspectFit
+                                            source: "file://" + blogBackend.getProjectRoot() + "/website/blog-processor/images/" + modelData
+                                            
+                                            Rectangle {
+                                                anchors.fill: parent
+                                                color: Material.color(Material.Grey, Material.Shade100)
+                                                visible: parent.status === Image.Error
+                                                
+                                                Text {
+                                                    anchors.centerIn: parent
+                                                    text: "?"
+                                                    font.pixelSize: 20
+                                                    color: Material.color(Material.Grey, Material.Shade500)
+                                                }
+                                            }
+                                        }
+                                        
+                                        Text {
+                                            text: modelData
+                                            font.pixelSize: 14
+                                            Layout.fillWidth: true
+                                            wrapMode: Text.WordWrap
+                                        }
+                                    }
+                                    
+                                    MouseArea {
+                                        id: imageMouseArea
+                                        anchors.fill: parent
+                                        hoverEnabled: true
+                                        onClicked: {
+                                            blogBackend.updateItemImage(itemIndex, modelData)
+                                            imageSelectionPopup.close()
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                        
+                        Button {
+                            text: "Cancel"
+                            Layout.alignment: Qt.AlignHCenter
+                            onClicked: imageSelectionPopup.close()
+                        }
                     }
                 }
             }

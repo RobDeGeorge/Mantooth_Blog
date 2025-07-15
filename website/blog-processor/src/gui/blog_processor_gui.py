@@ -211,7 +211,8 @@ class ProcessingThread(QThread):
                 slug = self.processor.generate_slug(title)
                 content_html = self.processor.format_content_to_html(paragraphs)
                 excerpt = self.processor.generate_excerpt(paragraphs)
-                featured_image = self.processor.find_matching_image(pdf_path.name)
+                # No default image - manual selection required
+                featured_image = ""
                 
                 blog_data = {
                     'title': title,
@@ -286,7 +287,8 @@ class BlogProcessorBackend(QObject):
                 # Extract basic info
                 title = self._processor.extract_title_from_filename(pdf_path.name)
                 slug = self._processor.generate_slug(title)
-                image_path = self._processor.find_matching_image(pdf_path.name)
+                # No default image - manual selection required
+                image_path = ""
                 
                 # Check if already published and get existing data
                 if slug in published_posts:
@@ -378,7 +380,11 @@ class BlogProcessorBackend(QObject):
                         paragraphs = extraction_result['paragraphs']
                         content_html = self._processor.format_content_to_html(paragraphs)
                         excerpt = self._processor.generate_excerpt(paragraphs)
-                        featured_image = self._processor.find_matching_image(pdf_path.name)
+                        # Keep existing image or leave blank for manual selection
+                        if hasattr(item, 'featuredImage') and item.featuredImage:
+                            featured_image = item.featuredImage
+                        else:
+                            featured_image = ""
                         
                         blog_data_for_html = {
                             'title': item.title,
@@ -595,6 +601,66 @@ class BlogProcessorBackend(QObject):
         except Exception as e:
             print(f"Error finalizing blog {index}: {e}")
             item.status = "error"
+    
+    @Slot(result=list)
+    def getAvailableImages(self):
+        """Get list of available images from blog-processor/images folder"""
+        try:
+            available_images = self._processor.list_available_images()
+            return available_images
+        except Exception as e:
+            print(f"Error getting available images: {e}")
+            return []
+    
+    @Slot(str)
+    def getProjectRoot(self):
+        """Get the project root path for QML"""
+        return str(self._processor.project_root)
+    
+    @Slot(int, str)
+    def updateItemImage(self, index, imageName):
+        """Update the image for a specific blog item"""
+        try:
+            item = self._blog_model.getItem(index)
+            if item:
+                item.imagePath = imageName
+                self.status = f"Updated image for '{item.title}' to '{imageName}'"
+                
+                # If this item is already published, update the files
+                if item.status == "published":
+                    self._updatePublishedBlogImage(item, imageName)
+        except Exception as e:
+            print(f"Error updating item image: {e}")
+            self.status = f"Error updating image: {e}"
+    
+    def _updatePublishedBlogImage(self, item, new_image):
+        """Update image for an already published blog"""
+        try:
+            # Update blog-data.json
+            if self._processor.blog_data_path.exists():
+                with open(self._processor.blog_data_path, 'r', encoding='utf-8') as f:
+                    data = json.load(f)
+                
+                # Find and update the post
+                for post in data.get("posts", []):
+                    if post.get("slug") == item.slug:
+                        old_image = post.get("featuredImage", "")
+                        post["featuredImage"] = new_image
+                        data["lastUpdated"] = datetime.now().isoformat()
+                        
+                        # Save updated data
+                        with open(self._processor.blog_data_path, 'w', encoding='utf-8') as f:
+                            json.dump(data, f, indent=2)
+                        
+                        # Update blogs.html
+                        self._processor.update_blogs_html_image(item.slug, old_image, new_image)
+                        
+                        # Update individual blog HTML
+                        self._processor.update_blog_post_image(item.slug, new_image)
+                        
+                        break
+        except Exception as e:
+            print(f"Error updating published blog image: {e}")
     
     @Slot()
     def _onProcessingFinished(self):
