@@ -537,7 +537,7 @@ class MantoothBlogProcessor:
                 <h2 class="blog-title">{title}</h2>
                 <p class="post-meta">Posted on {formatted_date}</p>
                 
-                <img src="../images/{featured_image}" alt="{title}" class="blog-featured-image">
+{featured_image_html}
                 
                 <div class="blog-content">
 {content}
@@ -567,10 +567,17 @@ class MantoothBlogProcessor:
         
         tags_html = '\n'.join([f'                    <span class="tag">{tag.title()}</span>' for tag in blog_data['tags']])
         
+        # Generate image HTML only if there's an image
+        featured_image = blog_data.get('featured_image', '')
+        if featured_image and featured_image.strip():
+            featured_image_html = f'                <img src="../images/{featured_image}" alt="{blog_data["title"]}" class="blog-featured-image">'
+        else:
+            featured_image_html = '                <!-- No featured image -->'
+        
         return template.format(
             title=blog_data['title'],
             formatted_date=blog_data['formatted_date'],
-            featured_image=blog_data['featured_image'],
+            featured_image_html=featured_image_html,
             content=blog_data['content'],
             tags_html=tags_html
         )
@@ -949,10 +956,6 @@ class MantoothBlogProcessor:
             with open(self.blogs_html_path, 'r', encoding='utf-8') as f:
                 content = f.read()
             
-            # Find and replace the image reference for this specific blog
-            old_src = f'src="blog-processor/images/{old_image}"'
-            new_src = f'src="blog-processor/images/{new_image}"'
-            
             # Look for the specific blog article containing this slug
             slug_pattern = f'data-url="blog-processor/output/{slug}.html"'
             
@@ -967,7 +970,29 @@ class MantoothBlogProcessor:
                     
                     if article_start != -1 and article_end != -1:
                         article_content = content[article_start:article_end]
-                        updated_article = article_content.replace(old_src, new_src)
+                        
+                        # Handle different image update scenarios
+                        if new_image and new_image.strip():
+                            new_src = f'src="blog-processor/images/{new_image}"'
+                            if old_image and old_image.strip():
+                                # Replace existing image
+                                old_src = f'src="blog-processor/images/{old_image}"'
+                                updated_article = article_content.replace(old_src, new_src)
+                            else:
+                                # No old image, need to add img tag to existing structure
+                                # This is complex for blogs.html, so just rebuild it
+                                print("⚠️  Complex image update needed - please refresh the page")
+                                updated_article = article_content
+                        else:
+                            # Remove image (set to empty)
+                            if old_image and old_image.strip():
+                                old_src = f'src="blog-processor/images/{old_image}"'
+                                # This is also complex, just note it
+                                print("⚠️  Image removal - please refresh the page")
+                                updated_article = article_content
+                            else:
+                                updated_article = article_content
+                        
                         content = content[:article_start] + updated_article + content[article_end:]
             
             with open(self.blogs_html_path, 'w', encoding='utf-8') as f:
@@ -988,12 +1013,26 @@ class MantoothBlogProcessor:
             with open(blog_file_path, 'r', encoding='utf-8') as f:
                 content = f.read()
             
-            # Update the featured image src
+            # Update the featured image - handle both existing image and no image cases
             import re
-            pattern = r'<img src="../images/[^"]*" alt="[^"]*" class="blog-featured-image">'
-            replacement = f'<img src="../images/{new_image}" alt="" class="blog-featured-image">'
             
-            updated_content = re.sub(pattern, replacement, content)
+            if new_image and new_image.strip():
+                # Create new image tag
+                new_image_html = f'                <img src="../images/{new_image}" alt="" class="blog-featured-image">'
+                
+                # Try to replace existing image first
+                pattern = r'<img src="../images/[^"]*" alt="[^"]*" class="blog-featured-image">'
+                if re.search(pattern, content):
+                    updated_content = re.sub(pattern, new_image_html, content)
+                else:
+                    # Replace no-image comment with image tag
+                    comment_pattern = r'                <!-- No featured image -->'
+                    updated_content = re.sub(comment_pattern, new_image_html, content)
+            else:
+                # Remove image, replace with comment
+                pattern = r'<img src="../images/[^"]*" alt="[^"]*" class="blog-featured-image">'
+                replacement = '                <!-- No featured image -->'
+                updated_content = re.sub(pattern, replacement, content)
             
             with open(blog_file_path, 'w', encoding='utf-8') as f:
                 f.write(updated_content)

@@ -211,8 +211,8 @@ class ProcessingThread(QThread):
                 slug = self.processor.generate_slug(title)
                 content_html = self.processor.format_content_to_html(paragraphs)
                 excerpt = self.processor.generate_excerpt(paragraphs)
-                # No default image - manual selection required
-                featured_image = ""
+                # Use the image selected in the UI (if any)
+                featured_image = item.imagePath if item.imagePath else ""
                 
                 blog_data = {
                     'title': title,
@@ -287,7 +287,7 @@ class BlogProcessorBackend(QObject):
                 # Extract basic info
                 title = self._processor.extract_title_from_filename(pdf_path.name)
                 slug = self._processor.generate_slug(title)
-                # No default image - manual selection required
+                # No default image - can be selected before or after processing
                 image_path = ""
                 
                 # Check if already published and get existing data
@@ -297,14 +297,16 @@ class BlogProcessorBackend(QObject):
                     item.tags = published_post.get("tags", [])
                     item.status = "published"
                     item.excerpt = published_post.get("excerpt", "")
+                    # Load existing featured image
+                    item.imagePath = published_post.get("featuredImage", "")
                 else:
                     item.title = title
                     item.tags = []
                     item.status = "pending"
                     item.excerpt = ""
+                    item.imagePath = image_path
                 
                 item.slug = slug
-                item.imagePath = image_path
                 
                 self._blog_model.addItem(item)
             
@@ -324,6 +326,9 @@ class BlogProcessorBackend(QObject):
         if item:
             tags = [tag.strip().lower() for tag in tags_string.split(',') if tag.strip()]
             item.tags = tags
+            # Notify the model that this item's data has changed
+            model_index = self._blog_model.index(index, 0)
+            self._blog_model.dataChanged.emit(model_index, model_index, [self._blog_model.TagsRole])
     
     @Slot(int, str)
     def updateItemTitle(self, index: int, new_title: str):
@@ -331,6 +336,9 @@ class BlogProcessorBackend(QObject):
         item = self._blog_model.getItem(index)
         if item:
             item.title = new_title.strip()
+            # Notify the model that this item's data has changed
+            model_index = self._blog_model.index(index, 0)
+            self._blog_model.dataChanged.emit(model_index, model_index, [self._blog_model.TitleRole])
     
     @Slot(int)
     def updatePublishedBlog(self, index: int):
@@ -356,6 +364,7 @@ class BlogProcessorBackend(QObject):
                 if post.get("slug") == current_slug:
                     post["title"] = item.title
                     post["tags"] = item.tags
+                    post["featuredImage"] = item.imagePath if item.imagePath else ""
                     post["lastUpdated"] = datetime.now().isoformat()
                     updated = True
                     break
@@ -380,11 +389,8 @@ class BlogProcessorBackend(QObject):
                         paragraphs = extraction_result['paragraphs']
                         content_html = self._processor.format_content_to_html(paragraphs)
                         excerpt = self._processor.generate_excerpt(paragraphs)
-                        # Keep existing image or leave blank for manual selection
-                        if hasattr(item, 'featuredImage') and item.featuredImage:
-                            featured_image = item.featuredImage
-                        else:
-                            featured_image = ""
+                        # Use the image selected in the UI
+                        featured_image = item.imagePath if item.imagePath else ""
                         
                         blog_data_for_html = {
                             'title': item.title,
@@ -583,6 +589,7 @@ class BlogProcessorBackend(QObject):
             blog_data['publish_date'] = datetime.now().strftime("%Y-%m-%d")
             blog_data['formatted_date'] = datetime.now().strftime("%B %d, %Y")
             blog_data['source_file'] = Path(item.pdfPath).name
+            # featured_image was already set correctly in the processing thread
             
             blog_html = self._processor.create_blog_html(blog_data)
             blog_file_path = self._processor.blogs_dir / f"{blog_data['slug']}.html"
@@ -615,7 +622,31 @@ class BlogProcessorBackend(QObject):
     @Slot(str)
     def getProjectRoot(self):
         """Get the project root path for QML"""
-        return str(self._processor.project_root)
+        root_path = str(self._processor.project_root)
+        print(f"Project root for QML: {root_path}")
+        return root_path
+    
+    @Slot(str, result=str)
+    def getImagePath(self, imageName):
+        """Get the full file path for an image"""
+        if not imageName:
+            return ""
+        
+        # Extract just the filename if it has a path
+        if "/" in imageName:
+            imageName = imageName.split("/")[-1]
+        
+        full_path = self._processor.blog_images_dir / imageName
+        file_url = f"file://{full_path}"
+        print(f"Image path for {imageName}: {file_url}")
+        
+        # Check if file exists
+        if full_path.exists():
+            print(f"✅ Image file exists: {full_path}")
+        else:
+            print(f"❌ Image file missing: {full_path}")
+        
+        return file_url
     
     @Slot(int, str)
     def updateItemImage(self, index, imageName):
@@ -623,12 +654,14 @@ class BlogProcessorBackend(QObject):
         try:
             item = self._blog_model.getItem(index)
             if item:
+                print(f"Setting imagePath to: {imageName} for item: {item.title}")
                 item.imagePath = imageName
-                self.status = f"Updated image for '{item.title}' to '{imageName}'"
                 
-                # If this item is already published, update the files
-                if item.status == "published":
-                    self._updatePublishedBlogImage(item, imageName)
+                # Notify the model that this item's data has changed
+                model_index = self._blog_model.index(index, 0)
+                self._blog_model.dataChanged.emit(model_index, model_index, [self._blog_model.ImagePathRole])
+                
+                self.status = f"Updated image for '{item.title}' to '{imageName}' - hit Update to apply to published blog"
         except Exception as e:
             print(f"Error updating item image: {e}")
             self.status = f"Error updating image: {e}"

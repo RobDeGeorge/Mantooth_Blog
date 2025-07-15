@@ -47,13 +47,15 @@ Rectangle {
                 fillMode: Image.PreserveAspectFit
                 source: {
                     if (!blogItem || !blogItem.imagePath) return ""
-                    
-                    // Build absolute path to image
-                    var imageName = blogItem.imagePath
-                    if (imageName.includes("/")) {
-                        imageName = imageName.split("/").pop()
+                    return blogBackend.getImagePath(blogItem.imagePath)
+                }
+                
+                onStatusChanged: {
+                    if (status === Image.Error) {
+                        console.log("Image load error for:", blogItem ? blogItem.title : "unknown", "path:", source)
+                    } else if (status === Image.Ready) {
+                        console.log("Image loaded successfully for:", blogItem ? blogItem.title : "unknown")
                     }
-                    return "file://" + blogBackend.getProjectRoot() + "/website/blog-processor/images/" + imageName
                 }
                 
                 Rectangle {
@@ -63,10 +65,11 @@ Rectangle {
                     
                     Text {
                         anchors.centerIn: parent
-                        text: "📷\nNo Image"
+                        text: "📷\nClick to\nSelect Image"
                         horizontalAlignment: Text.AlignHCenter
                         color: Material.color(Material.Grey, Material.Shade600)
-                        font.pixelSize: 12
+                        font.pixelSize: 11
+                        lineHeight: 0.9
                     }
                 }
                 
