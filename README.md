@@ -25,9 +25,9 @@ blog-processor/              # Blog processing tools
 ├── input/                   # PDF files to process
 ├── output/                  # Generated HTML blog posts
 └── src/                     # Python source code
-    ├── main.py             # Core blog processor
-    ├── blog_manager.py     # Cleanup utilities
-    └── gui/                # PySide6/QML interface
+    ├── main.py              # Core blog processor
+    ├── blog_manager.py      # Cleanup utilities
+    └── gui/                 # PySide6/QML interface
         ├── blog_processor_gui.py
         ├── blog_processor_ui.qml
         └── BlogItemCard.qml
