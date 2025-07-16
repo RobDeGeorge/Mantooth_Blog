@@ -7,24 +7,553 @@ PySide6/QML interface for blog processing
 import sys
 import os
 import json
+import re
 from pathlib import Path
-from typing import List, Dict, Optional
+from typing import List, Dict, Optional, Tuple
 from datetime import datetime
+from collections import defaultdict
 
 from PySide6.QtCore import QObject, Signal, Slot, Property, QAbstractListModel, QModelIndex, Qt, QUrl, QThread
 from PySide6.QtGui import QGuiApplication
 from PySide6.QtQml import qmlRegisterType, QmlElement
 from PySide6.QtQuickControls2 import QQuickStyle
 
-# Import our existing blog processor
-import sys
-from pathlib import Path
-sys.path.insert(0, str(Path(__file__).parent.parent))  # Add src directory to path
-from main import MantoothBlogProcessor
-from blog_manager import BlogManager
+try:
+    import pdfplumber
+except ImportError:
+    print("ERROR: pdfplumber not installed. Run: pip install pdfplumber")
+    sys.exit(1)
 
 QML_IMPORT_NAME = "BlogProcessor"
 QML_IMPORT_MAJOR_VERSION = 1
+
+class BlogProcessor:
+    """Pure GUI blog processor - no CLI components"""
+    def __init__(self):
+        self.project_root = self.find_project_root()
+        if not self.project_root:
+            raise Exception("Could not find project root")
+        
+        # Define paths
+        self.raw_blogs_dir = self.project_root / "website" / "blog-processor" / "input"
+        self.blogs_dir = self.project_root / "website" / "blog-processor" / "output"
+        self.blog_images_dir = self.project_root / "website" / "blog-processor" / "images"
+        self.json_dir = self.project_root / "website" / "assets" / "data"
+        self.blogs_html_path = self.project_root / "website" / "blogs.html"
+        self.blog_data_path = self.json_dir / "blog-data.json"
+        
+        # Create directories
+        self.blogs_dir.mkdir(parents=True, exist_ok=True)
+        self.blog_images_dir.mkdir(parents=True, exist_ok=True)
+        self.json_dir.mkdir(parents=True, exist_ok=True)
+
+    def find_project_root(self) -> Optional[Path]:
+        """Find project root by looking for key files"""
+        script_path = Path(__file__).parent
+        search_paths = [
+            script_path.parent.parent.parent,  # From gui/src/ to project root
+            Path.cwd(),
+        ]
+        
+        for root in search_paths:
+            if (root / "website" / "blogs.html").exists():
+                return root
+        return None
+
+    def list_available_pdfs(self) -> List[Path]:
+        """List all available PDF files"""
+        if not self.raw_blogs_dir.exists():
+            return []
+        return list(self.raw_blogs_dir.glob("*.pdf"))
+
+    def extract_text_from_pdf(self, pdf_path: Path) -> Optional[Dict]:
+        """Extract text from PDF"""
+        try:
+            with pdfplumber.open(pdf_path) as pdf:
+                full_text = ""
+                for page in pdf.pages:
+                    text = page.extract_text()
+                    if text:
+                        full_text += text
+                
+                if not full_text.strip():
+                    return None
+                
+                paragraphs = self.detect_paragraphs(full_text)
+                return {
+                    'paragraphs': paragraphs,
+                    'text': '\n\n'.join(paragraphs),
+                    'total_pages': len(pdf.pages),
+                    'total_paragraphs': len(paragraphs)
+                }
+        except Exception:
+            return None
+
+    def detect_paragraphs(self, text: str) -> List[str]:
+        """Robust paragraph detection"""
+        lines = text.replace("\r\n", "\n").replace("\r", "\n").split("\n")
+    
+        paragraphs: List[str] = []
+        current: List[str] = []
+    
+        for line in lines:
+            raw = line.rstrip()
+            if not raw.strip():
+                if current:
+                    paragraphs.append(self.clean_paragraph_text(" ".join(current)))
+                    current = []
+                continue
+    
+            indent = len(raw) - len(raw.lstrip())
+            new_para = False
+    
+            if indent >= 2 and current:
+                new_para = True
+            elif (current and
+                  current[-1][-1] in ".?!" and
+                  raw.lstrip()[:1].isupper()):
+                new_para = True
+    
+            if new_para:
+                paragraphs.append(self.clean_paragraph_text(" ".join(current)))
+                current = [raw.strip()]
+            else:
+                current.append(raw.strip())
+    
+        if current:
+            paragraphs.append(self.clean_paragraph_text(" ".join(current)))
+
+        return paragraphs
+
+    def clean_paragraph_text(self, text: str) -> str:
+        """Clean up paragraph text"""
+        # Remove hyphenation at line ends
+        text = re.sub(r'(\w+)-\s+(\w+)', r'\1\2', text)
+        
+        # Clean up whitespace
+        text = re.sub(r'\s+', ' ', text).strip()
+        
+        # Fix quotes
+        text = text.replace('"', '"').replace('"', '"')
+        text = text.replace(''', "'").replace(''', "'")
+        
+        return text
+
+    def parse_preview_content(self, preview_content: str) -> List[str]:
+        """Parse edited preview content back to paragraphs"""
+        if not preview_content.strip():
+            return []
+        
+        # Split by double newlines to get paragraph blocks
+        blocks = preview_content.split('\n\n')
+        paragraphs = []
+        
+        for block in blocks:
+            block = block.strip()
+            if not block:
+                continue
+            
+            # Remove paragraph numbers like [1], [2], etc.
+            # Handle cases like "[1] text" or just "text"
+            import re
+            cleaned = re.sub(r'^\[\d+\]\s*', '', block)
+            if cleaned.strip():
+                paragraphs.append(cleaned.strip())
+        
+        return paragraphs
+
+    def format_content_to_html(self, paragraphs: List[str], title: str) -> str:
+        """Convert paragraphs to HTML content"""
+        if not paragraphs:
+            return ""
+
+        html_elements = [f"                    <h3>{self.escape_html(title)}</h3>"]
+        
+        for para in paragraphs:
+            para = para.strip()
+            if not para:
+                continue
+            if para.endswith(':') and len(para) < 30:
+                html_elements.append(f"                    <h3>{self.escape_html(para.rstrip(':'))}</h3>")
+            else:
+                html_elements.append(f"                    <p>{self.escape_html(para)}</p>")
+
+        return "\n\n".join(html_elements)
+
+    def escape_html(self, text: str) -> str:
+        """Escape HTML special characters"""
+        text = text.replace('&', '&amp;')
+        text = text.replace('<', '&lt;')
+        text = text.replace('>', '&gt;')
+        text = text.replace('"', '&quot;')
+        text = text.replace("'", '&#39;')
+        return text
+
+    def generate_slug(self, title: str) -> str:
+        """Generate URL-friendly slug"""
+        slug = title.lower()
+        slug = re.sub(r'[^a-z0-9\s-]', '', slug)
+        slug = re.sub(r'\s+', '-', slug)
+        slug = re.sub(r'-+', '-', slug).strip('-')
+        return f"{slug}-blog"
+
+    def extract_title_from_filename(self, filename: str) -> str:
+        """Extract title from PDF filename"""
+        title = filename.replace('.pdf', '').replace('_', ' ')
+        title = re.sub(r'[^\w\s]', ' ', title)
+        title = ' '.join(word.capitalize() for word in title.split())
+        return title
+
+    def generate_excerpt(self, paragraphs: List[str], max_length: int = 200) -> str:
+        """Generate excerpt from paragraphs"""
+        for para in paragraphs:
+            if not (para.endswith(':') and len(para) < 50):
+                if len(para) <= max_length:
+                    return para
+                else:
+                    excerpt = para[:max_length]
+                    last_space = excerpt.rfind(' ')
+                    if last_space > max_length * 0.8:
+                        excerpt = excerpt[:last_space]
+                    return excerpt + "..."
+        return "No excerpt available."
+
+    def list_available_images(self) -> List[str]:
+        """List all available image files in the blog images directory"""
+        if not self.blog_images_dir.exists():
+            return []
+        
+        image_extensions = ['*.png', '*.jpg', '*.jpeg', '*.gif', '*.webp']
+        images = []
+        
+        for ext in image_extensions:
+            images.extend(self.blog_images_dir.glob(ext))
+            images.extend(self.blog_images_dir.glob(ext.upper()))
+        
+        return [img.name for img in sorted(images)]
+
+    def create_blog_html(self, blog_data: Dict) -> str:
+        """Generate blog HTML file"""
+        template = '''<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{title} - Mantooth</title>
+    <link rel="stylesheet" href="../../assets/css/style.css">
+</head>
+<body>
+    <header>
+        <div class="container">
+            <h1 class="logo">Mantooth</h1>
+            <nav>
+                <ul>
+                    <li><a href="../../index.html">Home</a></li>
+                    <li><a href="../../blogs.html" class="active">Blogs</a></li>
+                    <li><a href="../../about.html">About</a></li>
+                    <li><a href="../../contact.html">Contact</a></li>
+                </ul>
+            </nav>
+        </div>
+    </header>
+
+    <main>
+        <div class="container">
+            <article class="blog-post">
+                <h2 class="blog-title">{title}</h2>
+                <p class="post-meta">Posted on {formatted_date}</p>
+                
+{featured_image_html}
+                
+                <div class="blog-content">
+{content}
+                </div>
+                
+                <div class="blog-tags">
+{tags_html}
+                </div>
+            </article>
+        </div>
+    </main>
+
+    <footer>
+        <div class="container">
+            <p>&copy; 2025 Mantooth. All Rights Reserved.</p>
+            <div class="social-links">
+                <a href="#">Twitter</a>
+                <a href="#">Facebook</a>
+                <a href="#">Instagram</a>
+            </div>
+        </div>
+    </footer>
+
+    <script src="../../assets/js/clickable-cards.js"></script>
+</body>
+</html>'''
+        
+        tags_html = '\n'.join([f'                    <span class="tag">{tag.title()}</span>' for tag in blog_data['tags']])
+        
+        # Generate image HTML only if there's an image
+        featured_image = blog_data.get('featured_image', '')
+        if featured_image and featured_image.strip():
+            featured_image_html = f'                <img src="../images/{featured_image}" alt="{blog_data["title"]}" class="blog-featured-image">'
+        else:
+            featured_image_html = '                <!-- No featured image -->'
+        
+        return template.format(
+            title=blog_data['title'],
+            formatted_date=blog_data['formatted_date'],
+            featured_image_html=featured_image_html,
+            content=blog_data['content'],
+            tags_html=tags_html
+        )
+
+    def update_blogs_html(self, blog_data: Dict) -> bool:
+        """Update blogs.html with new entry"""
+        if not self.blogs_html_path.exists():
+            return False
+        
+        try:
+            with open(self.blogs_html_path, 'r', encoding='utf-8') as f:
+                content = f.read()
+            
+            grid_start = content.find('<section class="blogs-grid">')
+            grid_end = content.find('</section>', grid_start)
+            
+            if grid_start == -1 or grid_end == -1:
+                return False
+            
+            item_html = f'''                <!-- Blog Post - {blog_data['title']} -->
+                <article class="blog-item clickable-card" data-tags="{','.join(blog_data['tags'])}" data-url="blog-processor/output/{blog_data['slug']}.html">
+                    <img src="blog-processor/images/{blog_data['featured_image']}" alt="{blog_data['title']}">
+                    <div class="blog-content">
+                        <h3>{blog_data['title']}</h3>
+                        <p class="post-meta">Posted on {blog_data['formatted_date']}</p>
+                        <p>{blog_data['excerpt']}</p>
+                        <div class="blog-footer">
+                            <div class="blog-tags">
+                                {' '.join([f'<span class="tag">{tag.title()}</span>' for tag in blog_data['tags']])}
+                            </div>
+                        </div>
+                    </div>
+                </article>'''
+            
+            existing_section = content[grid_start:grid_end + 10]
+            insertion_point = existing_section.find('>', existing_section.find('<section class="blogs-grid">')) + 1
+            
+            updated_section = (existing_section[:insertion_point] + 
+                                '\n' + item_html + '\n                \n' + 
+                                existing_section[insertion_point:])
+            
+            updated_html = content[:grid_start] + updated_section + content[grid_end + 10:]
+            
+            with open(self.blogs_html_path, 'w', encoding='utf-8') as f:
+                f.write(updated_html)
+            
+            return True
+        except Exception:
+            return False
+
+    def update_blog_data_json(self, new_blogs: List[Dict]):
+        """Update blog-data.json"""
+        try:
+            if self.blog_data_path.exists():
+                with open(self.blog_data_path, 'r', encoding='utf-8') as f:
+                    data = json.load(f)
+            else:
+                data = {"posts": []}
+            
+            for blog in reversed(new_blogs):
+                post_data = {
+                    "id": blog['slug'].replace('-blog', '-2025'),
+                    "title": blog['title'],
+                    "slug": blog['slug'],
+                    "publishDate": blog['publish_date'],
+                    "excerpt": blog['excerpt'],
+                    "featuredImage": blog['featured_image'],
+                    "tags": blog['tags'],
+                    "readTime": self.calculate_read_time(blog['content']),
+                    "fileName": f"{blog['slug']}.html",
+                    "createdAt": datetime.now().isoformat(),
+                    "source": "GUI Processing",
+                    "sourceFile": blog.get('source_file', ''),
+                    "paragraphCount": blog.get('paragraph_count', 0)
+                }
+                data["posts"].insert(0, post_data)
+            
+            data["lastUpdated"] = datetime.now().isoformat()
+            data["totalPosts"] = len(data["posts"])
+            
+            with open(self.blog_data_path, 'w', encoding='utf-8') as f:
+                json.dump(data, f, indent=2)
+        except Exception:
+            pass
+
+    def calculate_read_time(self, content: str) -> int:
+        """Calculate estimated reading time"""
+        text = re.sub(r'<[^>]+>', '', content)
+        words = len(text.split())
+        return max(1, round(words / 200))
+
+class BlogManager:
+    def __init__(self):
+        self.processor = BlogProcessor()
+        self.blogs_dir = self.processor.blogs_dir
+        self.blog_data_path = self.processor.blog_data_path
+        self.blogs_html_path = self.processor.blogs_html_path
+    
+    def get_existing_blogs(self) -> Dict:
+        """Get existing blog data"""
+        try:
+            if self.blog_data_path.exists():
+                with open(self.blog_data_path, 'r', encoding='utf-8') as f:
+                    return json.load(f)
+            return {"posts": [], "totalPosts": 0}
+        except Exception:
+            return {"posts": [], "totalPosts": 0}
+    
+    def find_duplicates(self) -> Dict[str, List[Dict]]:
+        """Find duplicate blog posts by slug"""
+        blog_data = self.get_existing_blogs()
+        duplicates = defaultdict(list)
+        
+        for post in blog_data.get("posts", []):
+            slug = post.get("slug", "")
+            if slug:
+                duplicates[slug].append(post)
+        
+        return {slug: posts for slug, posts in duplicates.items() if len(posts) > 1}
+    
+    def clean_duplicates(self, keep_latest=True) -> int:
+        """Remove duplicate entries, keeping only the latest or first"""
+        blog_data = self.get_existing_blogs()
+        duplicates = self.find_duplicates()
+        
+        if not duplicates:
+            return 0
+        
+        # Remove duplicates
+        cleaned_posts = []
+        seen_slugs = set()
+        removed_count = 0
+        
+        # Sort posts by creation date
+        all_posts = blog_data.get("posts", [])
+        if keep_latest:
+            all_posts.sort(key=lambda x: x.get("createdAt", ""), reverse=True)
+        else:
+            all_posts.sort(key=lambda x: x.get("createdAt", ""))
+        
+        for post in all_posts:
+            slug = post.get("slug", "")
+            if slug not in seen_slugs:
+                cleaned_posts.append(post)
+                seen_slugs.add(slug)
+            else:
+                removed_count += 1
+        
+        # Update blog data
+        blog_data["posts"] = cleaned_posts
+        blog_data["totalPosts"] = len(cleaned_posts)
+        blog_data["lastUpdated"] = datetime.now().isoformat()
+        
+        # Save cleaned data
+        with open(self.blog_data_path, 'w', encoding='utf-8') as f:
+            json.dump(blog_data, f, indent=2)
+        
+        return removed_count
+    
+    def rebuild_blogs_html(self):
+        """Rebuild blogs.html from JSON data"""
+        blog_data = self.get_existing_blogs()
+        posts = blog_data.get("posts", [])
+        
+        if not posts:
+            return
+        
+        # Template parts
+        template_start = '''<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mantooth - Blogs</title>
+    <link rel="stylesheet" href="assets/css/style.css">
+</head>
+<body>
+    <header>
+        <div class="container">
+            <h1 class="logo">Mantooth</h1>
+            <nav>
+                <ul>
+                    <li><a href="index.html">Home</a></li>
+                    <li><a href="blogs.html" class="active">Blogs</a></li>
+                    <li><a href="about.html">About</a></li>
+                    <li><a href="contact.html">Contact</a></li>
+                </ul>
+            </nav>
+        </div>
+    </header>
+
+    <main>
+        <div class="container">
+            <section class="blogs-header">
+                <h2>All Blog Posts</h2>
+                <p>Explore my collection of thoughts, stories, and insights</p>
+            </section>
+
+            <section class="blogs-grid">'''
+
+        template_end = '''
+                <!-- New blog posts will be added here automatically by the Python processor -->
+                
+            </section>
+        </div>
+    </main>
+
+    <footer>
+        <div class="container">
+            <p>&copy; 2025 Mantooth. All Rights Reserved.</p>
+            <div class="social-links">
+                <a href="#">Twitter</a>
+                <a href="#">Facebook</a>
+                <a href="#">Instagram</a>
+            </div>
+        </div>
+    </footer>
+
+    <script src="assets/js/tag-filter.js"></script>
+    <script src="assets/js/clickable-cards.js"></script>
+</body>
+</html>'''
+        
+        # Generate blog items HTML
+        blog_items = []
+        for post in posts:
+            tags_html = ' '.join([f'<span class="tag">{tag.title()}</span>' for tag in post.get('tags', [])])
+            
+            item_html = f'''                <!-- Blog Post - {post.get('title', 'Unknown')} -->
+                <article class="blog-item clickable-card" data-tags="{','.join(post.get('tags', []))}" data-url="blog-processor/output/{post.get('fileName', '')}">
+                    <img src="blog-processor/images/{post.get('featuredImage', '')}" alt="{post.get('title', '')}">
+                    <div class="blog-content">
+                        <h3>{post.get('title', '')}</h3>
+                        <p class="post-meta">Posted on {datetime.fromisoformat(post.get('publishDate', '2025-01-01')).strftime('%B %d, %Y')}</p>
+                        <p>{post.get('excerpt', '')}</p>
+                        <div class="blog-footer">
+                            <div class="blog-tags">
+                                {tags_html}
+                            </div>
+                        </div>
+                    </div>
+                </article>'''
+            blog_items.append(item_html)
+        
+        # Combine everything
+        full_html = template_start + '\n'.join(blog_items) + template_end
+        
+        # Write to file
+        with open(self.blogs_html_path, 'w', encoding='utf-8') as f:
+            f.write(full_html)
 
 @QmlElement
 class BlogItem(QObject):
@@ -36,6 +565,8 @@ class BlogItem(QObject):
     tagsChanged = Signal()
     imagePathChanged = Signal()
     statusChanged = Signal()
+    previewContentChanged = Signal()
+    originalContentChanged = Signal()
     
     def __init__(self, pdf_path: str = "", parent=None):
         super().__init__(parent)
@@ -46,6 +577,8 @@ class BlogItem(QObject):
         self._image_path = ""
         self._status = "pending"  # pending, processing, completed, error
         self._pdf_path = pdf_path
+        self._preview_content = ""
+        self._original_content = ""
         
     @Property(str, notify=titleChanged)
     def title(self):
@@ -110,6 +643,26 @@ class BlogItem(QObject):
     @Property(str)
     def pdfPath(self):
         return self._pdf_path
+    
+    @Property(str, notify=previewContentChanged)
+    def previewContent(self):
+        return self._preview_content
+    
+    @previewContent.setter
+    def previewContent(self, value):
+        if self._preview_content != value:
+            self._preview_content = value
+            self.previewContentChanged.emit()
+    
+    @Property(str, notify=originalContentChanged)
+    def originalContent(self):
+        return self._original_content
+    
+    @originalContent.setter
+    def originalContent(self, value):
+        if self._original_content != value:
+            self._original_content = value
+            self.originalContentChanged.emit()
 
 @QmlElement
 class BlogListModel(QAbstractListModel):
@@ -122,6 +675,8 @@ class BlogListModel(QAbstractListModel):
     ImagePathRole = Qt.UserRole + 5
     StatusRole = Qt.UserRole + 6
     PdfPathRole = Qt.UserRole + 7
+    PreviewContentRole = Qt.UserRole + 8
+    OriginalContentRole = Qt.UserRole + 9
     
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -135,7 +690,9 @@ class BlogListModel(QAbstractListModel):
             self.TagsRole: b"tags",
             self.ImagePathRole: b"imagePath",
             self.StatusRole: b"status",
-            self.PdfPathRole: b"pdfPath"
+            self.PdfPathRole: b"pdfPath",
+            self.PreviewContentRole: b"previewContent",
+            self.OriginalContentRole: b"originalContent"
         }
     
     def rowCount(self, parent=QModelIndex()):
@@ -161,6 +718,10 @@ class BlogListModel(QAbstractListModel):
             return item.status
         elif role == self.PdfPathRole:
             return item.pdfPath
+        elif role == self.PreviewContentRole:
+            return item.previewContent
+        elif role == self.OriginalContentRole:
+            return item.originalContent
         
         return None
     
@@ -186,7 +747,7 @@ class ProcessingThread(QThread):
     itemProcessed = Signal(int, dict)  # index, blog_data
     finished = Signal()
     
-    def __init__(self, processor: MantoothBlogProcessor, items: List[BlogItem]):
+    def __init__(self, processor: BlogProcessor, items: List[BlogItem]):
         super().__init__()
         self.processor = processor
         self.items = items
@@ -206,10 +767,15 @@ class ProcessingThread(QThread):
                 
                 paragraphs = extraction_result['paragraphs']
                 
+                # Use edited preview content if available, otherwise use extracted paragraphs
+                if item.previewContent.strip():
+                    # Parse the edited preview content
+                    paragraphs = self.processor.parse_preview_content(item.previewContent)
+                
                 # Generate blog data
                 title = self.processor.extract_title_from_filename(pdf_path.name)
                 slug = self.processor.generate_slug(title)
-                content_html = self.processor.format_content_to_html(paragraphs)
+                content_html = self.processor.format_content_to_html(paragraphs, title)
                 excerpt = self.processor.generate_excerpt(paragraphs)
                 # Use the image selected in the UI (if any)
                 featured_image = item.imagePath if item.imagePath else ""
@@ -229,7 +795,7 @@ class ProcessingThread(QThread):
                 self.progressUpdate.emit(i, "completed")
                 
             except Exception as e:
-                print(f"Error processing {item.pdfPath}: {e}")
+                pass
                 self.progressUpdate.emit(i, "error")
         
         self.finished.emit()
@@ -246,7 +812,7 @@ class BlogProcessorBackend(QObject):
     def __init__(self, parent=None):
         super().__init__(parent)
         self._status = "ready"
-        self._processor = MantoothBlogProcessor()
+        self._processor = BlogProcessor()
         self._blog_manager = BlogManager()
         self._blog_model = BlogListModel()
         self._processing_thread = None
@@ -383,11 +949,15 @@ class BlogProcessorBackend(QObject):
                 if html_file.exists():
                     # Re-extract PDF content and regenerate HTML with new title/tags
                     pdf_path = Path(item.pdfPath)
-                    self._processor.selected_pdf = pdf_path  # Set this for format_content_to_html
                     extraction_result = self._processor.extract_text_from_pdf(pdf_path)
                     if extraction_result:
                         paragraphs = extraction_result['paragraphs']
-                        content_html = self._processor.format_content_to_html(paragraphs)
+                        
+                        # Use edited preview content if available
+                        if item.previewContent.strip():
+                            paragraphs = self._processor.parse_preview_content(item.previewContent)
+                        
+                        content_html = self._processor.format_content_to_html(paragraphs, item.title)
                         excerpt = self._processor.generate_excerpt(paragraphs)
                         # Use the image selected in the UI
                         featured_image = item.imagePath if item.imagePath else ""
@@ -417,9 +987,7 @@ class BlogProcessorBackend(QObject):
                 
         except Exception as e:
             self.status = f"update error: {e}"
-            print(f"Update error details: {e}")
-            import traceback
-            traceback.print_exc()
+            pass
     
     @Slot()
     def nukeAllBlogs(self):
@@ -499,7 +1067,7 @@ class BlogProcessorBackend(QObject):
                     try:
                         html_file.unlink()
                     except Exception as e:
-                        print(f"Error deleting {html_file}: {e}")
+                        pass
             
             self.status = "💥 all blogs nuked - fresh start ready"
             # Refresh to show clean state
@@ -606,7 +1174,7 @@ class BlogProcessorBackend(QObject):
             item.excerpt = blog_data['excerpt']
             
         except Exception as e:
-            print(f"Error finalizing blog {index}: {e}")
+            pass
             item.status = "error"
     
     @Slot(result=list)
@@ -616,14 +1184,13 @@ class BlogProcessorBackend(QObject):
             available_images = self._processor.list_available_images()
             return available_images
         except Exception as e:
-            print(f"Error getting available images: {e}")
+            pass
             return []
     
-    @Slot(str)
-    def getProjectRoot(self):
+    @Slot(result=str)
+    def getProjectRootPath(self):
         """Get the project root path for QML"""
         root_path = str(self._processor.project_root)
-        print(f"Project root for QML: {root_path}")
         return root_path
     
     @Slot(str, result=str)
@@ -638,15 +1205,70 @@ class BlogProcessorBackend(QObject):
         
         full_path = self._processor.blog_images_dir / imageName
         file_url = f"file://{full_path}"
-        print(f"Image path for {imageName}: {file_url}")
-        
-        # Check if file exists
-        if full_path.exists():
-            print(f"✅ Image file exists: {full_path}")
-        else:
-            print(f"❌ Image file missing: {full_path}")
+        # Return file URL for QML
         
         return file_url
+    
+    @Slot(int)
+    def loadPreview(self, index):
+        """Load preview content for a specific item"""
+        item = self._blog_model.getItem(index)
+        if not item:
+            return
+        
+        try:
+            self.status = f"loading preview for {item.title}..."
+            
+            # Extract text from PDF
+            pdf_path = Path(item.pdfPath)
+            extraction_result = self._processor.extract_text_from_pdf(pdf_path)
+            
+            if not extraction_result:
+                self.status = "failed to extract content from PDF"
+                return
+            
+            paragraphs = extraction_result['paragraphs']
+            
+            # Store original content as plain text
+            item.originalContent = '\n\n'.join(paragraphs)
+            
+            # Generate preview content (formatted for display)
+            preview_lines = []
+            for i, para in enumerate(paragraphs):
+                para = para.strip()
+                if not para:
+                    continue
+                # Add paragraph numbers for editing reference
+                preview_lines.append(f"[{i+1}] {para}")
+            
+            item.previewContent = '\n\n'.join(preview_lines)
+            
+            # Update excerpt from first meaningful paragraph
+            excerpt = self._processor.generate_excerpt(paragraphs)
+            item.excerpt = excerpt
+            
+            # Notify the model that this item's data has changed
+            model_index = self._blog_model.index(index, 0)
+            self._blog_model.dataChanged.emit(model_index, model_index, [
+                self._blog_model.PreviewContentRole,
+                self._blog_model.OriginalContentRole,
+                self._blog_model.ExcerptRole
+            ])
+            
+            self.status = f"✅ preview loaded for {item.title}"
+            
+        except Exception as e:
+            self.status = f"preview error: {e}"
+    
+    @Slot(int, str)
+    def updatePreviewContent(self, index, content):
+        """Update the preview content for a specific item"""
+        item = self._blog_model.getItem(index)
+        if item:
+            item.previewContent = content
+            # Notify the model that this item's data has changed
+            model_index = self._blog_model.index(index, 0)
+            self._blog_model.dataChanged.emit(model_index, model_index, [self._blog_model.PreviewContentRole])
     
     @Slot(int, str)
     def updateItemImage(self, index, imageName):
@@ -654,7 +1276,7 @@ class BlogProcessorBackend(QObject):
         try:
             item = self._blog_model.getItem(index)
             if item:
-                print(f"Setting imagePath to: {imageName} for item: {item.title}")
+                pass
                 item.imagePath = imageName
                 
                 # Notify the model that this item's data has changed
@@ -663,7 +1285,7 @@ class BlogProcessorBackend(QObject):
                 
                 self.status = f"Updated image for '{item.title}' to '{imageName}' - hit Update to apply to published blog"
         except Exception as e:
-            print(f"Error updating item image: {e}")
+            pass
             self.status = f"Error updating image: {e}"
     
     def _updatePublishedBlogImage(self, item, new_image):
@@ -693,7 +1315,7 @@ class BlogProcessorBackend(QObject):
                         
                         break
         except Exception as e:
-            print(f"Error updating published blog image: {e}")
+            pass
     
     @Slot()
     def _onProcessingFinished(self):

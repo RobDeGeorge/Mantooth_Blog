@@ -110,7 +110,6 @@ main {
 }
 
 /* Featured Post with Full-Width Background */
-/* Featured Post with Full-Width Background */
 .featured-post {
     position: relative;
     margin-bottom: 40px;
@@ -118,58 +117,13 @@ main {
     border-radius: 12px;
     box-shadow: 8px 8px 0 #5CB8E4;
     overflow: hidden;
-    height: 400px;
+    height: 500px;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
 }
 
-/* Blurred background effect */
-.featured-post::before {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    background-image: inherit;
-    background-size: cover;
-    background-position: center;
-    filter: blur(5px);
-    z-index: 0;
-}
-
-/* Semi-transparent black overlay */
-.featured-post::after {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    background: rgba(0, 0, 0, 0.4);
-    z-index: 1;
-}
-
-/* Title at the top */
-.featured-post h2 {
-    position: absolute;
-    top: 40px;
-    left: 50%;
-    transform: translateX(-50%);
-    width: auto;
-    text-align: center;
-    color: #2D4059;
-    font-size: 2.2rem;
-    text-transform: uppercase;
-    z-index: 3;
-    margin: 0;
-    background-color: rgba(255, 255, 255, 0.85);
-    padding: 12px 20px;
-    display: inline-block;
-    max-width: 80%;
-    border-radius: 8px;
-    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
-}
-
-/* Main satellite image - full width */
+/* Main satellite image - full width background */
 .featured-post img {
     position: absolute;
     top: 0;
@@ -181,23 +135,55 @@ main {
     z-index: 0;
 }
 
-/* Description at the bottom - wider and lower */
-.featured-post p {
+/* Gradient overlay for better text readability */
+.featured-post::before {
+    content: '';
     position: absolute;
-    bottom: 30px; /* Moved lower */
-    left: 50%;
-    transform: translateX(-50%);
-    width: 85%; /* Made wider */
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(
+        180deg, 
+        rgba(0, 0, 0, 0.6) 0%, 
+        rgba(0, 0, 0, 0.2) 40%, 
+        rgba(0, 0, 0, 0.2) 60%, 
+        rgba(0, 0, 0, 0.7) 100%
+    );
+    z-index: 1;
+}
+
+/* Title at the top with better contrast */
+.featured-post h2 {
+    position: relative;
+    top: 0;
+    padding: 30px 20px 20px;
     text-align: center;
-    color: #333;
-    font-size: 1.1rem;
+    color: #FFFFFF;
+    font-size: 2.8rem;
+    text-transform: uppercase;
     z-index: 3;
     margin: 0;
-    background-color: rgba(255, 255, 255, 0.85);
-    padding: 15px 20px;
-    border-radius: 8px;
-    max-width: 85%; /* Made wider */
-    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+    text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.8);
+    font-weight: 800;
+    letter-spacing: 2px;
+}
+
+/* Description at the bottom with improved styling */
+.featured-post p {
+    position: relative;
+    bottom: 0;
+    padding: 20px 30px 30px;
+    text-align: center;
+    color: #FFFFFF;
+    font-size: 1.2rem;
+    z-index: 3;
+    margin: 0;
+    text-shadow: 1px 1px 3px rgba(0, 0, 0, 0.8);
+    line-height: 1.6;
+    font-weight: 500;
+    max-width: 90%;
+    margin: 0 auto;
 }
 
 /* Read more button */
@@ -378,6 +364,40 @@ footer p {
     .social-links a {
         margin: 0 10px;
     }
+    
+    /* Featured post responsive adjustments */
+    .featured-post {
+        height: 400px;
+    }
+    
+    .featured-post h2 {
+        font-size: 2.2rem;
+        padding: 20px 15px 15px;
+        letter-spacing: 1px;
+    }
+    
+    .featured-post p {
+        font-size: 1.1rem;
+        padding: 15px 20px 25px;
+        line-height: 1.5;
+    }
+    
+    /* About page responsive adjustments */
+    .about-header {
+        height: 400px;
+    }
+    
+    .about-header h2 {
+        font-size: 2.4rem;
+        padding: 25px 15px 20px;
+        letter-spacing: 2px;
+    }
+    
+    .tagline {
+        font-size: 1.2rem;
+        padding: 20px 20px 30px;
+        letter-spacing: 1px;
+    }
 }
 
 /* Blogs Page Specific Styles */
@@ -494,7 +514,7 @@ footer p {
     padding: 8px 20px;
 }
 
-/* About Page Header - Image with Overlay Text */
+/* About Page Header - Clear Image with Text Overlays */
 .about-header {
     position: relative;
     margin-bottom: 40px;
@@ -502,90 +522,82 @@ footer p {
     border-radius: 12px;
     box-shadow: 8px 8px 0 #5CB8E4;
     overflow: hidden;
-    height: 400px;
+    height: 500px;
+    background-size: cover;
+    background-position: center;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
 }
 
-/* Add a blurred background version of the image */
+/* Minimal gradient only where text appears */
 .about-header::before {
     content: '';
     position: absolute;
     top: 0;
     left: 0;
     width: 100%;
-    height: 100%;
-    background-image: inherit; /* This will inherit the same image as the main one */
-    background-size: cover;
-    background-position: center;
-    filter: blur(8px) brightness(0.7);
-    z-index: 0;
-}
-
-.about-header h2 {
-    position: absolute;
-    top: 1px; /* Changed from 50px to position it at the very top */
-    left: 50%;
-    transform: translateX(-50%);
-    width: auto;
-    text-align: center;
-    color: #2D4059;
-    font-size: 2.2rem;
-    text-transform: uppercase;
-    z-index: 2;
-    margin: 0;
-    background-color: rgba(255, 255, 255, 0.7);
-    padding: 10px 10px;
-    display: inline-block;
-    max-width: 80%;
-    border-radius: 8px;
-}
-
-.author-image {
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    margin: auto;
-    height: 100%;
-    max-width: 60%; /* Controls the width of the main clear image */
-    object-fit: contain;
-    object-position: center center;
-    transform: scale(1.0);
-    transform-origin: center center;
-    border: none;
-    border-radius: 8px;
+    height: 100px;
+    background: linear-gradient(
+        180deg, 
+        rgba(0, 0, 0, 0.7) 0%, 
+        rgba(0, 0, 0, 0) 100%
+    );
     z-index: 1;
 }
 
-.tagline {
-    position: absolute;
-    bottom: 1px; /* Changed from 50px to position it at the very bottom */
-    left: 50%;
-    transform: translateX(-50%);
-    width: auto;
-    text-align: center;
-    color: #333;
-    font-style: italic;
-    font-size: 1.2rem;
-    z-index: 2;
-    margin: 0;
-    background-color: rgba(255, 255, 255, 0.7);
-    padding: 8px 15px;
-    display: inline-block;
-    max-width: 60%;
-    border-radius: 8px;
-}
-
-/* Modified overlay to be less dark */
 .about-header::after {
     content: '';
     position: absolute;
-    top: 0;
+    bottom: 0;
     left: 0;
     width: 100%;
-    height: 100%;
-    background: rgba(0, 0, 0, 0.1); /* Lighter semi-transparent overlay */
+    height: 100px;
+    background: linear-gradient(
+        0deg, 
+        rgba(0, 0, 0, 0.7) 0%, 
+        rgba(0, 0, 0, 0) 100%
+    );
     z-index: 1;
+}
+
+.about-header h2 {
+    position: relative;
+    top: 0;
+    padding: 30px 20px 20px;
+    text-align: center;
+    color: #FFFFFF;
+    font-size: 2.8rem;
+    text-transform: uppercase;
+    z-index: 3;
+    margin: 0;
+    text-shadow: 2px 2px 8px rgba(0, 0, 0, 0.9);
+    font-weight: 800;
+    letter-spacing: 2px;
+    background: rgba(0, 0, 0, 0.4);
+    border-radius: 8px;
+    backdrop-filter: blur(2px);
+    max-width: fit-content;
+    margin: 0 auto;
+}
+
+.tagline {
+    position: relative;
+    bottom: 0;
+    padding: 20px 30px 30px;
+    text-align: center;
+    color: #FFFFFF;
+    font-style: italic;
+    font-size: 1.4rem;
+    z-index: 3;
+    margin: 0 auto;
+    text-shadow: 2px 2px 6px rgba(0, 0, 0, 0.9);
+    font-weight: 600;
+    letter-spacing: 1px;
+    background: rgba(0, 0, 0, 0.4);
+    border-radius: 8px;
+    backdrop-filter: blur(2px);
+    max-width: fit-content;
 }
 
 .about-content {
