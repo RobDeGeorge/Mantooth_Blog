@@ -280,23 +280,23 @@ class BlogProcessor:
         <div class="container">
             <p>&copy; 2025 Mantooth. All Rights Reserved.</p>
             <div class="social-links">
-                <a href="#">Twitter</a>
                 <a href="#">Facebook</a>
                 <a href="#">Instagram</a>
             </div>
         </div>
     </footer>
 
+    <script src="../../assets/js/image-optimizer.js"></script>
     <script src="../../assets/js/clickable-cards.js"></script>
 </body>
 </html>'''
         
         tags_html = '\n'.join([f'                    <span class="tag">{tag.title()}</span>' for tag in blog_data['tags']])
         
-        # Generate image HTML only if there's an image
+        # Generate image HTML only if there's an image with lazy loading
         featured_image = blog_data.get('featured_image', '')
         if featured_image and featured_image.strip():
-            featured_image_html = f'                <img src="../images/{featured_image}" alt="{blog_data["title"]}" class="blog-featured-image">'
+            featured_image_html = f'                <img data-src="../images/{featured_image}" alt="{blog_data["title"]}" class="blog-featured-image lazy-loading">'
         else:
             featured_image_html = '                <!-- No featured image -->'
         
@@ -325,7 +325,7 @@ class BlogProcessor:
             
             item_html = f'''                <!-- Blog Post - {blog_data['title']} -->
                 <article class="blog-item clickable-card" data-tags="{','.join(blog_data['tags'])}" data-url="blog-processor/output/{blog_data['slug']}.html">
-                    <img src="blog-processor/images/{blog_data['featured_image']}" alt="{blog_data['title']}">
+                    <img data-src="blog-processor/images/{blog_data['featured_image']}" alt="{blog_data['title']}" class="lazy-loading">
                     <div class="blog-content">
                         <h3>{blog_data['title']}</h3>
                         <p class="post-meta">Posted on {blog_data['formatted_date']}</p>
@@ -516,13 +516,13 @@ class BlogManager:
         <div class="container">
             <p>&copy; 2025 Mantooth. All Rights Reserved.</p>
             <div class="social-links">
-                <a href="#">Twitter</a>
                 <a href="#">Facebook</a>
                 <a href="#">Instagram</a>
             </div>
         </div>
     </footer>
 
+    <script src="assets/js/image-optimizer.js"></script>
     <script src="assets/js/tag-filter.js"></script>
     <script src="assets/js/clickable-cards.js"></script>
 </body>
@@ -535,7 +535,7 @@ class BlogManager:
             
             item_html = f'''                <!-- Blog Post - {post.get('title', 'Unknown')} -->
                 <article class="blog-item clickable-card" data-tags="{','.join(post.get('tags', []))}" data-url="blog-processor/output/{post.get('fileName', '')}">
-                    <img src="blog-processor/images/{post.get('featuredImage', '')}" alt="{post.get('title', '')}">
+                    <img data-src="blog-processor/images/{post.get('featuredImage', '')}" alt="{post.get('title', '')}" class="lazy-loading">
                     <div class="blog-content">
                         <h3>{post.get('title', '')}</h3>
                         <p class="post-meta">Posted on {datetime.fromisoformat(post.get('publishDate', '2025-01-01')).strftime('%B %d, %Y')}</p>

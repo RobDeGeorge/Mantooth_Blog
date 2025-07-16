@@ -36,11 +36,65 @@ img {
     height: auto;
     border: 5px solid #F18F01;
     border-radius: 8px;
-    transition: transform 0.3s ease;
+    transition: transform 0.3s ease, opacity 0.3s ease;
 }
 
 img:hover {
     transform: rotate(1deg) scale(1.01);
+}
+
+/* Lazy loading image states */
+img.lazy-loading {
+    opacity: 0;
+    background-color: #f0f0f0;
+    background-image: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+    background-size: 200% 100%;
+    animation: loading-shimmer 1.5s infinite;
+}
+
+img.lazy-loaded {
+    opacity: 1;
+}
+
+img.lazy-error {
+    opacity: 1;
+    background-color: #ffebee;
+    border-color: #f44336;
+}
+
+/* Loading shimmer animation */
+@keyframes loading-shimmer {
+    0% {
+        background-position: -200% 0;
+    }
+    100% {
+        background-position: 200% 0;
+    }
+}
+
+/* Image loading spinner */
+.image-loading-spinner {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    color: #666;
+}
+
+.spinner {
+    width: 40px;
+    height: 40px;
+    border: 4px solid #f3f3f3;
+    border-top: 4px solid #F18F01;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+    margin-bottom: 10px;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
 }
 
 h1, h2, h3, h4, h5, h6 {
@@ -140,6 +194,25 @@ main {
     height: 400px;
     background-size: cover;
     background-position: center;
+    transition: opacity 0.5s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.home-image.loading-satellite {
+    background-color: #f0f0f0;
+}
+
+.image-error {
+    text-align: center;
+    color: #666;
+    padding: 20px;
+}
+
+.image-error p {
+    margin: 0;
+    font-style: italic;
 }
 
 /* Home description banner below image */

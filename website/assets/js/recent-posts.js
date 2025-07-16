@@ -93,7 +93,7 @@ class RecentPostsManager {
 
         const postsHTML = posts.map(post => `
             <article class="post-card clickable-card" data-url="${post.url}">
-                ${post.image ? `<img src="${post.image}" alt="${post.title}">` : '<div class="no-image-placeholder"></div>'}
+                ${post.image ? `<img data-src="${post.image}" alt="${post.title}" class="lazy-loading">` : '<div class="no-image-placeholder"></div>'}
                 <h3>${post.title}</h3>
                 <p class="post-meta">${post.dateText}</p>
                 <p>${post.excerpt}</p>
@@ -101,6 +101,11 @@ class RecentPostsManager {
         `).join('');
 
         container.innerHTML = postsHTML;
+        
+        // Initialize lazy loading for new images
+        if (window.imageOptimizer) {
+            window.imageOptimizer.initializePageImages();
+        }
         
         // Re-initialize clickable cards functionality
         this.initializeClickableCards();

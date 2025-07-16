@@ -44,11 +44,11 @@ class BlogGenerator {
         return blogHTML;
     }
 
-    // Generate blog item for blogs.html (updated - no read more button, clickable card)
+    // Generate blog item for blogs.html (updated - no read more button, clickable card, lazy loading)
     generateBlogItemHTML(blog) {
         return `
             <article class="blog-item clickable-card" data-tags="${blog.tags.join(',')}" data-url="assests/Blogs/${blog.slug}.html">
-                <img src="assests/Images/${blog.featuredImage}" alt="${blog.title}">
+                <img data-src="assests/Images/${blog.featuredImage}" alt="${blog.title}" class="lazy-loading">
                 <div class="blog-content">
                     <h3>${blog.title}</h3>
                     <p class="post-meta">Posted on ${this.formatDate(blog.publishDate)}</p>
@@ -94,7 +94,7 @@ class BlogGenerator {
                 <h2 class="blog-title">{{title}}</h2>
                 <p class="post-meta">Posted on {{publishDate}}</p>
                 
-                <img src="../Images/{{featuredImage}}" alt="{{title}}" class="blog-featured-image">
+                <img data-src="../Images/{{featuredImage}}" alt="{{title}}" class="blog-featured-image lazy-loading">
                 
                 <div class="blog-content">
                     {{content}}
@@ -111,12 +111,14 @@ class BlogGenerator {
         <div class="container">
             <p>&copy; 2025 Mantooth. All Rights Reserved.</p>
             <div class="social-links">
-                <a href="#">Twitter</a>
                 <a href="#">Facebook</a>
                 <a href="#">Instagram</a>
             </div>
         </div>
     </footer>
+
+    <script src="../../assets/js/image-optimizer.js"></script>
+    <script src="../../assets/js/clickable-cards.js"></script>
 </body>
 </html>`;
     }
@@ -161,5 +163,10 @@ class BlogGenerator {
             const blogItemHTML = this.generateBlogItemHTML(blog);
             blogsGrid.insertAdjacentHTML('beforeend', blogItemHTML);
         });
+        
+        // Initialize lazy loading for new images
+        if (window.imageOptimizer) {
+            window.imageOptimizer.initializePageImages();
+        }
     }
 }

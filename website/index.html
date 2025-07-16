@@ -54,30 +54,56 @@
     
 <script src="assets/js/clickable-cards.js"></script>
 <script src="assets/js/recent-posts.js"></script>
+<script src="assets/js/image-optimizer.js"></script>
 <script>
-    // Function to randomly select one of the satellite photos
-    document.addEventListener('DOMContentLoaded', function() {
-        const satImages = [
-            'assets/images/Sat_photo_1',
-            'assets/images/Sat_photo_2',
-            'assets/images/Sat_photo_3'
-        ];
-        
-        // Randomly select one of the images
-        const randomImageIndex = Math.floor(Math.random() * satImages.length);
-        const selectedImage = satImages[randomImageIndex];
-        
-        // Set the image path
-        const imagePath = `${selectedImage}.jpg`;
-        
-        // Set the background image for the home image section
+    // Enhanced satellite image loading with preloading
+    document.addEventListener('DOMContentLoaded', async function() {
         const homeImage = document.getElementById('home-image');
-        homeImage.style.backgroundImage = `url('${imagePath}')`;
         
-        // Random background position for variety
-        const positions = ['center', 'top', 'bottom', 'left', 'right', 'top left', 'top right', 'bottom left', 'bottom right'];
-        const randomPosition = positions[Math.floor(Math.random() * positions.length)];
-        homeImage.style.backgroundPosition = randomPosition;
+        // Add loading state
+        homeImage.classList.add('loading-satellite');
+        homeImage.innerHTML = '<div class="image-loading-spinner"><div class="spinner"></div><p>Loading satellite image...</p></div>';
+        
+        try {
+            // Preload all satellite images
+            await window.imageOptimizer.preloadSatelliteImages();
+            
+            const satImages = [
+                'assets/images/Sat_photo_1',
+                'assets/images/Sat_photo_2',
+                'assets/images/Sat_photo_3'
+            ];
+            
+            // Randomly select one of the images
+            const randomImageIndex = Math.floor(Math.random() * satImages.length);
+            const selectedImage = satImages[randomImageIndex];
+            
+            // Set the image path
+            const imagePath = `${selectedImage}.jpg`;
+            
+            // Remove loading spinner
+            homeImage.innerHTML = '';
+            homeImage.classList.remove('loading-satellite');
+            
+            // Set the background image with fade-in effect
+            homeImage.style.opacity = '0';
+            homeImage.style.backgroundImage = `url('${imagePath}')`;
+            
+            // Random background position for variety
+            const positions = ['center', 'top', 'bottom', 'left', 'right', 'top left', 'top right', 'bottom left', 'bottom right'];
+            const randomPosition = positions[Math.floor(Math.random() * positions.length)];
+            homeImage.style.backgroundPosition = randomPosition;
+            
+            // Fade in the image
+            setTimeout(() => {
+                homeImage.style.opacity = '1';
+            }, 100);
+            
+        } catch (error) {
+            console.error('Error loading satellite images:', error);
+            homeImage.innerHTML = '<div class="image-error"><p>Unable to load satellite image</p></div>';
+            homeImage.classList.remove('loading-satellite');
+        }
     });
 </script>
 </body>
