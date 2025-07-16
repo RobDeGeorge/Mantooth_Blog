@@ -423,8 +423,8 @@ footer p {
     }
     
     /* About page responsive adjustments */
-    .about-header {
-        height: 400px;
+    .about-image {
+        height: 300px;
     }
     
     .about-header h2 {
@@ -581,7 +581,7 @@ footer p {
     padding: 8px 20px;
 }
 
-/* About Page Header - Title above image */
+/* About Page Header - Title above image like home page */
 .about-header {
     margin-bottom: 40px;
     border: 4px solid #F18F01;
@@ -591,12 +591,6 @@ footer p {
     background-color: #FFF;
     display: flex;
     flex-direction: column;
-}
-
-/* Remove overlays since text is now separate */
-.about-header::before,
-.about-header::after {
-    display: none;
 }
 
 .about-header h2 {
@@ -619,7 +613,10 @@ footer p {
     height: 400px;
     background-size: cover;
     background-position: center;
-    border-radius: 0 0 8px 8px;
+    transition: opacity 0.5s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
 }
 
 .tagline {
