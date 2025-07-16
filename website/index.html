@@ -23,11 +23,14 @@
 
     <main>
         <div class="container">
-            <section class="featured-post" id="featured-post">
+            <section class="home-header">
                 <h2>Welcome to Mantooth</h2>
-                <!-- The image will be set by JavaScript -->
-                <img id="featured-image" alt="Featured satellite image">
-                <p>Welcome to Mantooth-- the sliver of the internet where you can find my takes and opinions on things— from books, film, music, local eateries, the great outdoors, travel and just existing in today's world as I perceive it.</p>
+                <div class="home-image" id="home-image">
+                    <!-- The image will be set by JavaScript -->
+                </div>
+                <div class="home-description">
+                    <p>Welcome to Mantooth-- the sliver of the internet where you can find my takes and opinions on things— from books, film, music, local eateries, the great outdoors, travel and just existing in today's world as I perceive it.</p>
+                </div>
             </section>
             <section class="recent-posts">
                 <h2>Recent Posts</h2>
@@ -67,18 +70,14 @@
         // Set the image path
         const imagePath = `${selectedImage}.jpg`;
         
-        // Set the featured image src
-        const featuredImage = document.getElementById('featured-image');
-        featuredImage.src = imagePath;
-        
-        // Set the background image for the featured post section
-        const featuredPost = document.getElementById('featured-post');
-        featuredPost.style.backgroundImage = `url('${imagePath}')`;
+        // Set the background image for the home image section
+        const homeImage = document.getElementById('home-image');
+        homeImage.style.backgroundImage = `url('${imagePath}')`;
         
         // Random background position for variety
         const positions = ['center', 'top', 'bottom', 'left', 'right', 'top left', 'top right', 'bottom left', 'bottom right'];
         const randomPosition = positions[Math.floor(Math.random() * positions.length)];
-        featuredPost.style.backgroundPosition = randomPosition;
+        homeImage.style.backgroundPosition = randomPosition;
     });
 </script>
 </body>

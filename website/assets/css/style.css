@@ -109,89 +109,55 @@ main {
     padding: 40px 0;
 }
 
-/* Featured Post with Full-Width Background */
-.featured-post {
-    position: relative;
+/* Home Page Header - Title above image, description below */
+.home-header {
     margin-bottom: 40px;
     border: 4px solid #F18F01;
     border-radius: 12px;
     box-shadow: 8px 8px 0 #5CB8E4;
     overflow: hidden;
-    height: 500px;
+    background-color: #FFF;
     display: flex;
     flex-direction: column;
-    justify-content: space-between;
 }
 
-/* Main satellite image - full width background */
-.featured-post img {
-    position: absolute;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-    border: none;
-    z-index: 0;
-}
-
-/* Gradient overlay for better text readability */
-.featured-post::before {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    background: linear-gradient(
-        180deg, 
-        rgba(0, 0, 0, 0.6) 0%, 
-        rgba(0, 0, 0, 0.2) 40%, 
-        rgba(0, 0, 0, 0.2) 60%, 
-        rgba(0, 0, 0, 0.7) 100%
-    );
-    z-index: 1;
-}
-
-/* Title at the top with better contrast */
-.featured-post h2 {
-    position: relative;
-    top: 0;
-    padding: 30px 20px 20px;
+.home-header h2 {
+    padding: 30px 20px;
     text-align: center;
-    color: #FFFFFF;
+    color: #2D4059;
     font-size: 2.8rem;
     text-transform: uppercase;
-    z-index: 3;
     margin: 0;
-    text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.8);
     font-weight: 800;
     letter-spacing: 2px;
+    background-color: #FFF;
+    border-bottom: 3px solid #F18F01;
 }
 
-/* Description at the bottom with improved styling */
-.featured-post p {
-    position: relative;
-    bottom: 0;
-    padding: 20px 30px 30px;
+/* Home image container */
+.home-image {
+    width: 100%;
+    height: 400px;
+    background-size: cover;
+    background-position: center;
+}
+
+/* Home description banner below image */
+.home-description {
+    padding: 30px 20px;
     text-align: center;
-    color: #FFFFFF;
+    background-color: #FFF;
+    border-top: 3px solid #F18F01;
+}
+
+.home-description p {
+    color: #2D4059;
     font-size: 1.2rem;
-    z-index: 3;
-    margin: 0;
-    text-shadow: 1px 1px 3px rgba(0, 0, 0, 0.8);
     line-height: 1.6;
-    font-weight: 500;
+    margin: 0;
     max-width: 90%;
     margin: 0 auto;
-}
-
-/* Read more button */
-.featured-post .read-more {
-    position: relative;
-    z-index: 3;
-    margin-top: 10px;
-    display: inline-block;
+    font-weight: 500;
 }
 
 .read-more {
@@ -365,18 +331,18 @@ footer p {
         margin: 0 10px;
     }
     
-    /* Featured post responsive adjustments */
-    .featured-post {
-        height: 400px;
+    /* Home header responsive adjustments */
+    .home-image {
+        height: 300px;
     }
     
-    .featured-post h2 {
+    .home-header h2 {
         font-size: 2.2rem;
-        padding: 20px 15px 15px;
+        padding: 25px 15px 20px;
         letter-spacing: 1px;
     }
     
-    .featured-post p {
+    .home-description p {
         font-size: 1.1rem;
         padding: 15px 20px 25px;
         line-height: 1.5;
@@ -541,87 +507,64 @@ footer p {
     padding: 8px 20px;
 }
 
-/* About Page Header - Clear Image with Text Overlays */
+/* About Page Header - Title above image */
 .about-header {
-    position: relative;
     margin-bottom: 40px;
     border: 4px solid #F18F01;
     border-radius: 12px;
     box-shadow: 8px 8px 0 #5CB8E4;
     overflow: hidden;
-    height: 500px;
-    background-size: cover;
-    background-position: center;
+    background-color: #FFF;
     display: flex;
     flex-direction: column;
-    justify-content: space-between;
 }
 
-/* Minimal gradient only where text appears */
-.about-header::before {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100px;
-    background: linear-gradient(
-        180deg, 
-        rgba(0, 0, 0, 0.7) 0%, 
-        rgba(0, 0, 0, 0) 100%
-    );
-    z-index: 1;
-}
-
+/* Remove overlays since text is now separate */
+.about-header::before,
 .about-header::after {
-    content: '';
-    position: absolute;
-    bottom: 0;
-    left: 0;
-    width: 100%;
-    height: 100px;
-    background: linear-gradient(
-        0deg, 
-        rgba(0, 0, 0, 0.7) 0%, 
-        rgba(0, 0, 0, 0) 100%
-    );
-    z-index: 1;
+    display: none;
 }
 
 .about-header h2 {
-    position: relative;
-    top: 0;
-    padding: 30px 20px 20px;
+    padding: 30px 20px;
     text-align: center;
-    color: #FFFFFF;
+    color: #2D4059;
     font-size: 2.8rem;
     text-transform: uppercase;
-    z-index: 3;
     margin: 0;
-    text-shadow: 2px 2px 8px rgba(0, 0, 0, 0.9);
     font-weight: 800;
     letter-spacing: 2px;
-    max-width: fit-content;
-    margin: 0 auto;
+    background-color: #FFF;
+    border-bottom: 3px solid #F18F01;
+}
+
+/* Image container for about page */
+.about-image {
+    width: 100%;
+    height: 400px;
+    background-size: cover;
+    background-position: center;
+    border-radius: 0 0 8px 8px;
 }
 
 .tagline {
-    position: relative;
-    bottom: 0;
-    padding: 20px 30px 30px;
+    position: absolute;
+    bottom: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    padding: 15px 25px;
     text-align: center;
     color: #FFFFFF;
     font-style: italic;
-    font-size: 1.4rem;
-    z-index: 3;
-    margin: 0 auto;
+    font-size: 1.3rem;
+    margin: 0;
     text-shadow: 2px 2px 6px rgba(0, 0, 0, 0.9);
     font-weight: 600;
     letter-spacing: 1px;
-    background: rgba(0, 0, 0, 0.4);
+    background: rgba(0, 0, 0, 0.6);
     border-radius: 8px;
     backdrop-filter: blur(2px);
-    max-width: fit-content;
+    max-width: 80%;
 }
 
 .about-content {
