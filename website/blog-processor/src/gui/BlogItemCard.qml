@@ -5,7 +5,6 @@ import QtQuick.Controls.Material 2.15
 
 Rectangle {
     id: root
-    height: 220
     color: "white"
     border.color: Material.color(Material.Grey, Material.Shade200)
     border.width: 1
@@ -21,20 +20,24 @@ Rectangle {
         z: -1
     }
     
-    property var blogItem
-    property int itemIndex
+    property var blogItem: null
+    property int itemIndex: -1
     
     signal tagsChanged(string tags)
     
+    // Hide the entire card if no blog item
+    visible: blogItem !== null
+    
+    
     RowLayout {
         anchors.fill: parent
-        anchors.margins: 20
-        spacing: 20
+        anchors.margins: 24
+        spacing: 24
         
         // Image preview area
         Rectangle {
-            Layout.preferredWidth: 140
-            Layout.preferredHeight: 180
+            Layout.preferredWidth: 160
+            Layout.preferredHeight: 220
             color: Material.color(Material.Grey, Material.Shade100)
             border.color: Material.color(Material.Grey, Material.Shade300)
             border.width: 1
@@ -61,7 +64,7 @@ Rectangle {
                 Rectangle {
                     anchors.fill: parent
                     color: "transparent"
-                    visible: blogImage.status === Image.Error || !blogItem.imagePath
+                    visible: blogImage.status === Image.Error || !blogItem || !blogItem.imagePath
                     
                     Text {
                         anchors.centerIn: parent
@@ -186,7 +189,7 @@ Rectangle {
         ColumnLayout {
             Layout.fillWidth: true
             Layout.fillHeight: true
-            spacing: 12
+            spacing: 16
             
             // Title editing area
             RowLayout {
@@ -247,7 +250,12 @@ Rectangle {
             
             // PDF path
             Text {
-                text: blogItem ? "📄 " + blogItem.pdfPath.split('/').pop() : ""
+                property string pdfFileName: {
+                    if (!blogItem || !blogItem.pdfPath) return ""
+                    var path = blogItem.pdfPath.toString()
+                    return path.substring(path.lastIndexOf('/') + 1)
+                }
+                text: pdfFileName ? "📄 " + pdfFileName : ""
                 font.pixelSize: 12
                 font.family: "Arial"
                 color: Material.color(Material.Grey, Material.Shade500)
@@ -255,53 +263,113 @@ Rectangle {
                 wrapMode: Text.WordWrap
             }
             
-            // Excerpt preview with edit button
-            RowLayout {
+            // Separator
+            Rectangle {
+                Layout.fillWidth: true
+                height: 1
+                color: Material.color(Material.Grey, Material.Shade200)
+                Layout.topMargin: 8
+                Layout.bottomMargin: 8
+            }
+            
+            // Content editing section
+            ColumnLayout {
                 Layout.fillWidth: true
                 spacing: 10
                 
-                ScrollView {
-                    Layout.fillWidth: true
-                    Layout.preferredHeight: 50
-                    Layout.maximumHeight: 50
-                    clip: true
-                    
-                    Text {
-                        text: blogItem && blogItem.excerpt ? blogItem.excerpt : "Preview will appear after processing..."
-                        font.pixelSize: 12
-                        font.family: "Arial"
-                        color: Material.color(Material.Grey, Material.Shade600)
-                        width: parent.width
-                        wrapMode: Text.WordWrap
-                    }
+                Text {
+                    text: "📝 Blog Content:"
+                    font.pixelSize: 12
+                    font.family: "Arial"
+                    font.bold: true
+                    color: Material.color(Material.Grey, Material.Shade700)
                 }
                 
-                Button {
-                    text: (blogItem && blogItem.previewContent && blogItem.previewContent.trim() !== "") ? "Edit" : "Load"
-                    font.pixelSize: 10
-                    font.bold: true
-                    implicitWidth: 50
-                    implicitHeight: 30
-                    Material.background: Material.Blue
-                    Material.foreground: "white"
+                ScrollView {
+                    Layout.fillWidth: true
+                    Layout.fillHeight: true
+                    Layout.minimumHeight: 450
+                    Layout.preferredHeight: 600
+                    clip: true
+                    ScrollBar.horizontal.policy: ScrollBar.AlwaysOff
+                    ScrollBar.vertical.policy: ScrollBar.AsNeeded
                     
-                    onClicked: {
-                        if (blogItem && blogItem.previewContent && blogItem.previewContent.trim() !== "") {
-                            previewDialog.open()
-                        } else {
-                            blogBackend.loadPreview(itemIndex)
+                    TextArea {
+                        id: contentTextArea
+                        placeholderText: ""
+                        font.pixelSize: 11
+                        font.family: "Arial"
+                        selectByMouse: true
+                        wrapMode: TextArea.Wrap
+                        width: parent.width
+                        
+                        // Add padding to prevent text from touching edges
+                        topPadding: 12
+                        leftPadding: 12
+                        rightPadding: 12
+                        bottomPadding: 12
+                        
+                        // Prevent horizontal scrolling
+                        horizontalAlignment: TextArea.AlignLeft
+                        verticalAlignment: TextArea.AlignTop
+                        
+                        property bool isUserEditing: false
+                        property string initialContent: (blogItem && blogItem.previewContent) ? blogItem.previewContent : ""
+                        
+                        // Initialize text but allow editing
+                        text: initialContent
+                        
+                        // Update text when blogItem changes
+                        onInitialContentChanged: {
+                            if (!isUserEditing) {
+                                text = initialContent
+                            }
+                        }
+                        
+                        
+                        
+                        background: Rectangle {
+                            color: Material.color(Material.Grey, Material.Shade50)
+                            border.color: contentTextArea.activeFocus ? Material.color(Material.Blue) : Material.color(Material.Grey, Material.Shade300)
+                            border.width: 1
+                            radius: 6
+                        }
+                        
+                        onActiveFocusChanged: {
+                            if (activeFocus) {
+                                isUserEditing = true
+                            } else {
+                                isUserEditing = false
+                                if (text.trim() !== "") {
+                                    blogBackend.updatePreviewContent(itemIndex, text)
+                                }
+                            }
+                        }
+                        
+                        Keys.onPressed: {
+                            isUserEditing = true
                         }
                     }
                 }
+                
+            }
+            
+            // Separator
+            Rectangle {
+                Layout.fillWidth: true
+                height: 1
+                color: Material.color(Material.Grey, Material.Shade200)
+                Layout.topMargin: 8
+                Layout.bottomMargin: 8
             }
             
             // Tags input area
             RowLayout {
                 Layout.fillWidth: true
-                spacing: 15
+                spacing: 18
                 
                 Text {
-                    text: "Tags:"
+                    text: "🏷️ Tags:"
                     font.pixelSize: 13
                     font.family: "Arial"
                     font.bold: true
@@ -312,24 +380,32 @@ Rectangle {
                 TextField {
                     id: tagsField
                     Layout.fillWidth: true
-                    placeholderText: "Enter tags separated by commas (e.g., food, phoenix, restaurants)"
+                    placeholderText: ""
                     font.pixelSize: 12
                     font.family: "Arial"
                     selectByMouse: true
                     
                     property bool isUserEditing: false
+                    property string savedTags: ""
                     
                     Component.onCompleted: {
                         if (blogItem && blogItem.tags) {
-                            text = blogItem.tags.join(", ")
+                            savedTags = blogItem.tags.join(", ")
+                            text = savedTags
                         }
                     }
                     
+                    // Watch for blogItem property changes
                     Connections {
-                        target: blogItem
-                        function onTagsChanged() {
-                            if (!tagsField.isUserEditing && blogItem && blogItem.tags) {
-                                tagsField.text = blogItem.tags.join(", ")
+                        target: root
+                        function onBlogItemChanged() {
+                            if (blogItem && blogItem.tags && !tagsField.isUserEditing && tagsField.savedTags === "") {
+                                // Only update if we don't have saved tags yet
+                                tagsField.savedTags = blogItem.tags.join(", ")
+                                tagsField.text = tagsField.savedTags
+                            } else if (tagsField.savedTags !== "" && !tagsField.isUserEditing) {
+                                // Keep showing saved tags
+                                tagsField.text = tagsField.savedTags
                             }
                         }
                     }
@@ -347,8 +423,15 @@ Rectangle {
                         } else {
                             isUserEditing = false
                             if (text.trim() !== "") {
+                                savedTags = text.trim()  // Save tags locally
                                 root.tagsChanged(text)
                             }
+                        }
+                    }
+                    
+                    onTextChanged: {
+                        if (isUserEditing && text.trim() !== "") {
+                            savedTags = text.trim()  // Save as user types
                         }
                     }
                     
@@ -372,7 +455,7 @@ Rectangle {
                             default: return "Process"
                         }
                     }
-                    enabled: blogItem && blogItem.status !== "processing" && (tagsField.text.trim() !== "" || (blogItem.tags && blogItem.tags.length > 0))
+                    enabled: blogItem && blogItem.status !== "processing" && (tagsField.text.trim() !== "" || (blogItem && blogItem.tags && blogItem.tags.length > 0))
                     
                     font.pixelSize: 11
                     font.bold: true
@@ -402,12 +485,34 @@ Rectangle {
                         }
                         
                         // Then process or update
-                        if (blogItem && (tagsField.text.trim() !== "" || (blogItem.tags && blogItem.tags.length > 0))) {
-                            if (blogItem.status === "published" || blogItem.status === "completed") {
+                        if (blogItem && (tagsField.text.trim() !== "" || (blogItem && blogItem.tags && blogItem.tags.length > 0))) {
+                            if (blogItem && (blogItem.status === "published" || blogItem.status === "completed")) {
                                 blogBackend.updatePublishedBlog(itemIndex)
                             } else {
                                 blogBackend.processSingleItem(itemIndex)
                             }
+                        }
+                    }
+                }
+                
+                Button {
+                    text: "🗑️ Unpublish"
+                    enabled: blogItem && blogItem.status === "published"
+                    visible: blogItem && blogItem.status === "published"
+                    
+                    font.pixelSize: 11
+                    font.bold: true
+                    font.family: "Arial"
+                    
+                    implicitWidth: 80
+                    implicitHeight: 35
+                    
+                    Material.background: Material.Red
+                    Material.foreground: "white"
+                    
+                    onClicked: {
+                        if (blogItem && blogItem.status === "published") {
+                            blogBackend.deletePublishedBlog(itemIndex)
                         }
                     }
                 }
@@ -416,7 +521,7 @@ Rectangle {
             // Status indicator  
             Rectangle {
                 Layout.fillWidth: true
-                height: 28
+                height: 32
                 color: {
                     if (!blogItem) return "transparent"
                     switch(blogItem.status) {
@@ -464,116 +569,4 @@ Rectangle {
         }
     }
     
-    // Preview Content Dialog
-    Popup {
-        id: previewDialog
-        width: Math.min(800, root.width * 0.9)
-        height: Math.min(600, root.height * 0.8)
-        x: (parent.width - width) / 2
-        y: (parent.height - height) / 2
-        modal: true
-        focus: true
-        
-        onOpened: {
-            // Refresh the text area content when dialog opens
-            if (blogItem && blogItem.previewContent) {
-                previewTextArea.text = blogItem.previewContent
-            } else {
-                previewTextArea.text = "No content loaded. Click 'Load' first to extract content from PDF."
-            }
-        }
-        
-        Rectangle {
-            anchors.fill: parent
-            color: "white"
-            border.color: Material.color(Material.Grey, Material.Shade300)
-            border.width: 1
-            radius: 8
-            
-            ColumnLayout {
-                anchors.fill: parent
-                anchors.margins: 20
-                spacing: 15
-                
-                Text {
-                    text: "Edit Content: " + (blogItem ? blogItem.title : "")
-                    font.pixelSize: 18
-                    font.bold: true
-                    Layout.fillWidth: true
-                }
-                
-                Text {
-                    text: "Edit the extracted content below. Use [1], [2], etc. as paragraph markers."
-                    font.pixelSize: 12
-                    color: Material.color(Material.Grey, Material.Shade600)
-                    Layout.fillWidth: true
-                }
-                
-                ScrollView {
-                    Layout.fillWidth: true
-                    Layout.fillHeight: true
-                    clip: true
-                    
-                    TextArea {
-                        id: previewTextArea
-                        font.pixelSize: 12
-                        font.family: "Arial"
-                        wrapMode: TextArea.Wrap
-                        selectByMouse: true
-                        
-                        background: Rectangle {
-                            color: Material.color(Material.Grey, Material.Shade50)
-                            border.color: Material.color(Material.Grey, Material.Shade200)
-                            border.width: 1
-                            radius: 4
-                        }
-                        
-                        Connections {
-                            target: blogItem
-                            function onPreviewContentChanged() {
-                                if (blogItem && blogItem.previewContent) {
-                                    previewTextArea.text = blogItem.previewContent
-                                }
-                            }
-                        }
-                        
-                        Component.onCompleted: {
-                            if (blogItem && blogItem.previewContent) {
-                                text = blogItem.previewContent
-                            }
-                        }
-                    }
-                }
-                
-                RowLayout {
-                    Layout.fillWidth: true
-                    spacing: 15
-                    
-                    Button {
-                        text: "Cancel"
-                        Layout.fillWidth: true
-                        font.pixelSize: 14
-                        implicitHeight: 40
-                        Material.background: Material.Grey
-                        Material.foreground: "white"
-                        onClicked: previewDialog.close()
-                    }
-                    
-                    Button {
-                        text: "Save Changes"
-                        Layout.fillWidth: true
-                        font.pixelSize: 14
-                        font.bold: true
-                        implicitHeight: 40
-                        Material.background: Material.Green
-                        Material.foreground: "white"
-                        onClicked: {
-                            blogBackend.updatePreviewContent(itemIndex, previewTextArea.text)
-                            previewDialog.close()
-                        }
-                    }
-                }
-            }
-        }
-    }
 }

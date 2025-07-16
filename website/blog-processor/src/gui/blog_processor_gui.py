@@ -377,7 +377,8 @@ class BlogProcessor:
                     "createdAt": datetime.now().isoformat(),
                     "source": "GUI Processing",
                     "sourceFile": blog.get('source_file', ''),
-                    "paragraphCount": blog.get('paragraph_count', 0)
+                    "paragraphCount": blog.get('paragraph_count', 0),
+                    "editedContent": blog.get('edited_content', '')  # Store the edited preview content
                 }
                 data["posts"].insert(0, post_data)
             
@@ -567,6 +568,7 @@ class BlogItem(QObject):
     statusChanged = Signal()
     previewContentChanged = Signal()
     originalContentChanged = Signal()
+    pdfPathChanged = Signal()
     
     def __init__(self, pdf_path: str = "", parent=None):
         super().__init__(parent)
@@ -735,6 +737,7 @@ class BlogListModel(QAbstractListModel):
         self._items.clear()
         self.endResetModel()
     
+    @Slot(int, result=QObject)
     def getItem(self, index: int) -> Optional[BlogItem]:
         if 0 <= index < len(self._items):
             return self._items[index]
@@ -788,7 +791,8 @@ class ProcessingThread(QThread):
                     'featured_image': featured_image,
                     'paragraphs': paragraphs,
                     'paragraph_count': len(paragraphs),
-                    'pdf_path': str(pdf_path)
+                    'pdf_path': str(pdf_path),
+                    'edited_content': item.previewContent  # Store the edited content from UI
                 }
                 
                 self.itemProcessed.emit(i, blog_data)
@@ -808,6 +812,7 @@ class BlogProcessorBackend(QObject):
     progressChanged = Signal(int, int)  # current, total
     itemsChanged = Signal()
     processingFinished = Signal()
+    preserveCurrentPage = Signal()
     
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -839,7 +844,7 @@ class BlogProcessorBackend(QObject):
     @Slot()
     def scanForPdfs(self):
         """Scan for PDF files and populate the model"""
-        self.status = "scanning"
+        self.status = "scanning and auto-loading content..."
         self._blog_model.clear()
         
         try:
@@ -856,21 +861,47 @@ class BlogProcessorBackend(QObject):
                 # No default image - can be selected before or after processing
                 image_path = ""
                 
+                # Auto-load content from PDF
+                try:
+                    extraction_result = self._processor.extract_text_from_pdf(pdf_path)
+                    if extraction_result:
+                        paragraphs = extraction_result['paragraphs']
+                        # Generate preview content (clean text without numbers)
+                        preview_lines = []
+                        for para in paragraphs:
+                            para = para.strip()
+                            if not para:
+                                continue
+                            preview_lines.append(para)
+                        
+                        preview_content = '\n\n'.join(preview_lines)
+                        excerpt = self._processor.generate_excerpt(paragraphs)
+                    else:
+                        preview_content = ""
+                        excerpt = "Failed to extract content from PDF"
+                except Exception as e:
+                    preview_content = ""
+                    excerpt = f"Error loading PDF: {str(e)}"
+                
                 # Check if already published and get existing data
                 if slug in published_posts:
                     published_post = published_posts[slug]
                     item.title = published_post.get("title", title)
                     item.tags = published_post.get("tags", [])
                     item.status = "published"
-                    item.excerpt = published_post.get("excerpt", "")
+                    item.excerpt = published_post.get("excerpt", excerpt)
                     # Load existing featured image
                     item.imagePath = published_post.get("featuredImage", "")
+                    # Use saved edited content if available, otherwise use auto-loaded
+                    saved_content = published_post.get("editedContent", "")
+                    item.previewContent = saved_content if saved_content else preview_content
                 else:
                     item.title = title
                     item.tags = []
                     item.status = "pending"
-                    item.excerpt = ""
+                    item.excerpt = excerpt
                     item.imagePath = image_path
+                    item.previewContent = preview_content
                 
                 item.slug = slug
                 
@@ -879,7 +910,7 @@ class BlogProcessorBackend(QObject):
             published_count = len([item for item in range(self._blog_model.rowCount()) 
                                  if self._blog_model.getItem(item).status == "published"])
             
-            self.status = f"found {len(pdfs)} PDFs ({published_count} already published)"
+            self.status = f"loaded {len(pdfs)} PDFs with content ({published_count} already published)"
             self.itemsChanged.emit()
             
         except Exception as e:
@@ -931,6 +962,7 @@ class BlogProcessorBackend(QObject):
                     post["title"] = item.title
                     post["tags"] = item.tags
                     post["featuredImage"] = item.imagePath if item.imagePath else ""
+                    post["editedContent"] = item.previewContent  # Save the edited content
                     post["lastUpdated"] = datetime.now().isoformat()
                     updated = True
                     break
@@ -988,6 +1020,52 @@ class BlogProcessorBackend(QObject):
         except Exception as e:
             self.status = f"update error: {e}"
             pass
+    
+    @Slot(int)
+    def deletePublishedBlog(self, index: int):
+        """Delete a specific published blog"""
+        item = self._blog_model.getItem(index)
+        if not item or item.status != "published":
+            self.status = "Can only delete published blogs"
+            return
+        
+        try:
+            self.status = f"unpublishing {item.title}..."
+            
+            # Remove from blog-data.json
+            blog_data = self._blog_manager.get_existing_blogs()
+            posts = blog_data.get("posts", [])
+            
+            # Find and remove the post
+            updated_posts = [post for post in posts if post.get("slug") != item.slug]
+            
+            if len(updated_posts) < len(posts):
+                # Update JSON data
+                blog_data["posts"] = updated_posts
+                blog_data["totalPosts"] = len(updated_posts)
+                blog_data["lastUpdated"] = datetime.now().isoformat()
+                
+                with open(self._blog_manager.blog_data_path, 'w', encoding='utf-8') as f:
+                    json.dump(blog_data, f, indent=2)
+                
+                # Remove HTML file
+                html_file = self._processor.blogs_dir / f"{item.slug}.html"
+                if html_file.exists():
+                    html_file.unlink()
+                
+                # Rebuild blogs.html
+                self._blog_manager.rebuild_blogs_html()
+                
+                self.status = f"✅ unpublished {item.title}"
+                # Signal to preserve current page before refresh
+                self.preserveCurrentPage.emit()
+                # Refresh to show changes
+                self.scanForPdfs()
+            else:
+                self.status = "Blog not found in published posts"
+                
+        except Exception as e:
+            self.status = f"delete error: {e}"
     
     @Slot()
     def nukeAllBlogs(self):
@@ -1209,56 +1287,6 @@ class BlogProcessorBackend(QObject):
         
         return file_url
     
-    @Slot(int)
-    def loadPreview(self, index):
-        """Load preview content for a specific item"""
-        item = self._blog_model.getItem(index)
-        if not item:
-            return
-        
-        try:
-            self.status = f"loading preview for {item.title}..."
-            
-            # Extract text from PDF
-            pdf_path = Path(item.pdfPath)
-            extraction_result = self._processor.extract_text_from_pdf(pdf_path)
-            
-            if not extraction_result:
-                self.status = "failed to extract content from PDF"
-                return
-            
-            paragraphs = extraction_result['paragraphs']
-            
-            # Store original content as plain text
-            item.originalContent = '\n\n'.join(paragraphs)
-            
-            # Generate preview content (formatted for display)
-            preview_lines = []
-            for i, para in enumerate(paragraphs):
-                para = para.strip()
-                if not para:
-                    continue
-                # Add paragraph numbers for editing reference
-                preview_lines.append(f"[{i+1}] {para}")
-            
-            item.previewContent = '\n\n'.join(preview_lines)
-            
-            # Update excerpt from first meaningful paragraph
-            excerpt = self._processor.generate_excerpt(paragraphs)
-            item.excerpt = excerpt
-            
-            # Notify the model that this item's data has changed
-            model_index = self._blog_model.index(index, 0)
-            self._blog_model.dataChanged.emit(model_index, model_index, [
-                self._blog_model.PreviewContentRole,
-                self._blog_model.OriginalContentRole,
-                self._blog_model.ExcerptRole
-            ])
-            
-            self.status = f"✅ preview loaded for {item.title}"
-            
-        except Exception as e:
-            self.status = f"preview error: {e}"
     
     @Slot(int, str)
     def updatePreviewContent(self, index, content):
@@ -1322,6 +1350,8 @@ class BlogProcessorBackend(QObject):
         """Handle completion of all processing"""
         self.status = "processing completed - refreshing..."
         self.processingFinished.emit()
+        # Signal to preserve current page before refresh
+        self.preserveCurrentPage.emit()
         # Refresh the scan to update published status
         self.scanForPdfs()
 
