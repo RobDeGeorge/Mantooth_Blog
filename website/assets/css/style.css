@@ -186,6 +186,7 @@ main {
     letter-spacing: 2px;
     background-color: #FFF;
     border-bottom: 3px solid #F18F01;
+    line-height: 1.2;
 }
 
 /* Home image container */
@@ -427,9 +428,9 @@ footer p {
     }
     
     .about-header h2 {
-        font-size: 2.4rem;
+        font-size: 2.2rem;
         padding: 25px 15px 20px;
-        letter-spacing: 2px;
+        letter-spacing: 1px;
     }
     
     .tagline {
@@ -609,6 +610,7 @@ footer p {
     letter-spacing: 2px;
     background-color: #FFF;
     border-bottom: 3px solid #F18F01;
+    line-height: 1.2;
 }
 
 /* Image container for about page */
