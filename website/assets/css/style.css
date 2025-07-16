@@ -398,6 +398,33 @@ footer p {
         padding: 20px 20px 30px;
         letter-spacing: 1px;
     }
+    
+    /* Blog post mobile optimizations for better reading */
+    .container {
+        width: 95%;
+        padding: 0 10px;
+    }
+    
+    .blog-post {
+        padding: 20px 15px;
+        margin-bottom: 20px;
+    }
+    
+    .blog-title {
+        font-size: 2rem;
+        line-height: 1.2;
+    }
+    
+    .blog-content p {
+        font-size: 1.05rem;
+        line-height: 1.7;
+        margin-bottom: 18px;
+    }
+    
+    .blog-content h3 {
+        font-size: 1.4rem;
+        margin-bottom: 15px;
+    }
 }
 
 /* Blogs Page Specific Styles */
