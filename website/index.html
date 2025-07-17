@@ -60,6 +60,9 @@
     document.addEventListener('DOMContentLoaded', async function() {
         const homeImage = document.getElementById('home-image');
         
+        // Initialize global image optimizer
+        window.imageOptimizer = new ImageOptimizer();
+        
         // Add loading state
         homeImage.classList.add('loading-satellite');
         homeImage.innerHTML = '<div class="image-loading-spinner"><div class="spinner"></div><p>Loading satellite image...</p></div>';

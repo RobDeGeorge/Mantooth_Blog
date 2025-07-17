@@ -40,7 +40,7 @@ class RecentPostsManager {
             const title = item.querySelector('h3')?.textContent.trim();
             const excerpt = item.querySelector('.blog-content > p:not(.post-meta)')?.textContent.trim();
             const dateText = item.querySelector('.post-meta')?.textContent.trim();
-            const image = item.querySelector('img')?.src || item.querySelector('img')?.getAttribute('src');
+            const image = item.querySelector('img')?.src || item.querySelector('img')?.getAttribute('src') || item.querySelector('img')?.getAttribute('data-src');
             const url = item.getAttribute('data-url');
             const tags = item.getAttribute('data-tags')?.split(',') || [];
 
@@ -103,9 +103,10 @@ class RecentPostsManager {
         container.innerHTML = postsHTML;
         
         // Initialize lazy loading for new images
-        if (window.imageOptimizer) {
-            window.imageOptimizer.initializePageImages();
-        }
+        const imageOptimizer = new ImageOptimizer();
+        container.querySelectorAll('img.lazy-loading').forEach(img => {
+            imageOptimizer.addLazyImage(img);
+        });
         
         // Re-initialize clickable cards functionality
         this.initializeClickableCards();

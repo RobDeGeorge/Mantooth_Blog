@@ -8,6 +8,7 @@ import sys
 import os
 import json
 import re
+import time
 from pathlib import Path
 from typing import List, Dict, Optional, Tuple
 from datetime import datetime
@@ -325,7 +326,7 @@ class BlogProcessor:
             
             item_html = f'''                <!-- Blog Post - {blog_data['title']} -->
                 <article class="blog-item clickable-card" data-tags="{','.join(blog_data['tags'])}" data-url="blog-processor/output/{blog_data['slug']}.html">
-                    <img data-src="blog-processor/images/{blog_data['featured_image']}" alt="{blog_data['title']}" class="lazy-loading">
+                    <img data-src="blog-processor/images/{blog_data['featured_image']}?v={int(time.time())}" alt="{blog_data['title']}" class="lazy-loading">
                     <div class="blog-content">
                         <h3>{blog_data['title']}</h3>
                         <p class="post-meta">Posted on {blog_data['formatted_date']}</p>
@@ -469,8 +470,7 @@ class BlogManager:
         blog_data = self.get_existing_blogs()
         posts = blog_data.get("posts", [])
         
-        if not posts:
-            return
+        # Continue even if no posts to generate clean empty blogs.html
         
         # Template parts
         template_start = '''<!DOCTYPE html>
@@ -525,6 +525,15 @@ class BlogManager:
     <script src="assets/js/image-optimizer.js"></script>
     <script src="assets/js/tag-filter.js"></script>
     <script src="assets/js/clickable-cards.js"></script>
+    <script>
+        // Initialize image lazy loading
+        document.addEventListener('DOMContentLoaded', function() {
+            const imageOptimizer = new ImageOptimizer();
+            document.querySelectorAll('img.lazy-loading').forEach(img => {
+                imageOptimizer.addLazyImage(img);
+            });
+        });
+    </script>
 </body>
 </html>'''
         
@@ -535,7 +544,7 @@ class BlogManager:
             
             item_html = f'''                <!-- Blog Post - {post.get('title', 'Unknown')} -->
                 <article class="blog-item clickable-card" data-tags="{','.join(post.get('tags', []))}" data-url="blog-processor/output/{post.get('fileName', '')}">
-                    <img data-src="blog-processor/images/{post.get('featuredImage', '')}" alt="{post.get('title', '')}" class="lazy-loading">
+                    <img data-src="blog-processor/images/{post.get('featuredImage', '')}?v={int(time.time())}" alt="{post.get('title', '')}" class="lazy-loading">
                     <div class="blog-content">
                         <h3>{post.get('title', '')}</h3>
                         <p class="post-meta">Posted on {datetime.fromisoformat(post.get('publishDate', '2025-01-01')).strftime('%B %d, %Y')}</p>
@@ -955,6 +964,17 @@ class BlogProcessorBackend(QObject):
             # Use the item's current slug to find the post
             current_slug = item.slug
             
+            # Generate new excerpt from updated content
+            if item.previewContent.strip():
+                paragraphs = self._processor.parse_preview_content(item.previewContent)
+            else:
+                # Fallback to PDF extraction
+                pdf_path = Path(item.pdfPath)
+                extraction_result = self._processor.extract_text_from_pdf(pdf_path)
+                paragraphs = extraction_result['paragraphs'] if extraction_result else []
+            
+            new_excerpt = self._processor.generate_excerpt(paragraphs) if paragraphs else ""
+            
             # Update the post in JSON data
             updated = False
             for post in posts:
@@ -963,6 +983,7 @@ class BlogProcessorBackend(QObject):
                     post["tags"] = item.tags
                     post["featuredImage"] = item.imagePath if item.imagePath else ""
                     post["editedContent"] = item.previewContent  # Save the edited content
+                    post["excerpt"] = new_excerpt  # Update the excerpt
                     post["lastUpdated"] = datetime.now().isoformat()
                     updated = True
                     break
@@ -1243,11 +1264,9 @@ class BlogProcessorBackend(QObject):
             with open(blog_file_path, 'w', encoding='utf-8') as f:
                 f.write(blog_html)
             
-            # Update blogs.html
-            self._processor.update_blogs_html(blog_data)
-            
-            # Update JSON data
+            # Update JSON data first, then rebuild HTML to ensure scripts are included
             self._processor.update_blog_data_json([blog_data])
+            self._blog_manager.rebuild_blogs_html()
             
             item.excerpt = blog_data['excerpt']
             

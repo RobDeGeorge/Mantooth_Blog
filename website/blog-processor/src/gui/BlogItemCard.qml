@@ -297,7 +297,7 @@ Rectangle {
                     TextArea {
                         id: contentTextArea
                         placeholderText: ""
-                        font.pixelSize: 11
+                        font.pixelSize: 14
                         font.family: "Arial"
                         selectByMouse: true
                         wrapMode: TextArea.Wrap
