@@ -442,8 +442,8 @@ footer p {
     
     /* Blog post mobile optimizations for better reading */
     .container {
-        width: 95%;
-        padding: 0 10px;
+        width: 100%;
+        padding: 0 1px;
     }
     
     .blog-post {
@@ -544,7 +544,7 @@ footer p {
 }
 
 .blog-content {
-    padding: 20px;
+    padding: 10px;
 }
 
 .blog-content h3 {
