@@ -66,8 +66,11 @@ class TagFilter {
         const blogItems = document.querySelectorAll('.blog-item');
         const allTags = new Set();
 
-        blogItems.forEach(item => {
+        console.log('Found blog items:', blogItems.length);
+
+        blogItems.forEach((item, index) => {
             const tags = item.dataset.tags;
+            console.log(`Blog item ${index} tags:`, tags);
             if (tags) {
                 tags.split(',').forEach(tag => {
                     const cleanTag = tag.trim().toLowerCase();
@@ -76,7 +79,9 @@ class TagFilter {
             }
         });
 
-        return Array.from(allTags).sort();
+        const tagArray = Array.from(allTags).sort();
+        console.log('All extracted tags:', tagArray);
+        return tagArray;
     }
 
     bindEvents() {
@@ -166,6 +171,10 @@ class TagFilter {
 document.addEventListener('DOMContentLoaded', () => {
     // Only initialize if we're on the blogs page
     if (document.querySelector('.blogs-grid')) {
-        new TagFilter();
+        // Add a small delay to ensure all elements are ready
+        setTimeout(() => {
+            const tagFilter = new TagFilter();
+            console.log('TagFilter initialized with tags:', tagFilter.extractTagsFromPage());
+        }, 100);
     }
 });

@@ -381,7 +381,21 @@ class BlogProcessor:
                     "paragraphCount": blog.get('paragraph_count', 0),
                     "editedContent": blog.get('edited_content', '')  # Store the edited preview content
                 }
-                data["posts"].insert(0, post_data)
+                
+                # Check if post already exists and update it instead of duplicating
+                existing_index = None
+                for i, existing_post in enumerate(data["posts"]):
+                    if existing_post.get("slug") == blog['slug']:
+                        existing_index = i
+                        break
+                
+                if existing_index is not None:
+                    # Update existing post
+                    post_data["lastUpdated"] = datetime.now().isoformat()
+                    data["posts"][existing_index] = post_data
+                else:
+                    # Insert new post at the beginning
+                    data["posts"].insert(0, post_data)
             
             data["lastUpdated"] = datetime.now().isoformat()
             data["totalPosts"] = len(data["posts"])
@@ -895,8 +909,10 @@ class BlogProcessorBackend(QObject):
                 # Check if already published and get existing data
                 if slug in published_posts:
                     published_post = published_posts[slug]
+                    # Only use existing tags if they match the current PDF source file
+                    source_file_matches = published_post.get("sourceFile", "") == pdf_path.name
                     item.title = published_post.get("title", title)
-                    item.tags = published_post.get("tags", [])
+                    item.tags = published_post.get("tags", []) if source_file_matches else []
                     item.status = "published"
                     item.excerpt = published_post.get("excerpt", excerpt)
                     # Load existing featured image
