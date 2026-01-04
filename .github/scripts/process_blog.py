@@ -30,7 +30,7 @@ class BlogProcessor:
         return slug.strip('-')
 
     def extract_text_from_pdf(self, pdf_path: Path) -> list[str]:
-        """Extract paragraphs from PDF"""
+        """Extract paragraphs from PDF with better paragraph detection"""
         paragraphs = []
 
         with pdfplumber.open(pdf_path) as pdf:
@@ -38,19 +38,80 @@ class BlogProcessor:
             for page in pdf.pages:
                 text = page.extract_text()
                 if text:
-                    full_text += text + "\n"
+                    full_text += text + "\n\n"  # Add extra newline between pages
 
-        # Split into paragraphs (double newline or significant spacing)
-        raw_paragraphs = re.split(r'\n\s*\n', full_text)
+        # First, normalize line breaks and fix hyphenation
+        full_text = re.sub(r'(\w)-\n(\w)', r'\1\2', full_text)  # Fix hyphenated words
+
+        # Try multiple strategies to detect paragraphs
+
+        # Strategy 1: Split on double newlines (standard paragraph breaks)
+        if '\n\n' in full_text:
+            raw_paragraphs = re.split(r'\n\s*\n', full_text)
+        # Strategy 2: Split on lines that end with period followed by newline and capital letter
+        else:
+            # Join lines that don't end with sentence-ending punctuation
+            lines = full_text.split('\n')
+            rebuilt_paragraphs = []
+            current_para = ""
+
+            for line in lines:
+                line = line.strip()
+                if not line:
+                    if current_para:
+                        rebuilt_paragraphs.append(current_para)
+                        current_para = ""
+                    continue
+
+                if current_para:
+                    # Check if previous paragraph ended with sentence-ending punctuation
+                    # and current line starts with capital (new paragraph)
+                    if (current_para[-1] in '.!?"' and
+                        line[0].isupper() and
+                        len(current_para) > 200):  # Likely a paragraph break
+                        rebuilt_paragraphs.append(current_para)
+                        current_para = line
+                    else:
+                        current_para += " " + line
+                else:
+                    current_para = line
+
+            if current_para:
+                rebuilt_paragraphs.append(current_para)
+
+            raw_paragraphs = rebuilt_paragraphs if rebuilt_paragraphs else [full_text]
 
         for para in raw_paragraphs:
             # Clean up the paragraph
             cleaned = para.strip()
             cleaned = re.sub(r'\s+', ' ', cleaned)  # Normalize whitespace
-            cleaned = re.sub(r'(\w)-\s+(\w)', r'\1\2', cleaned)  # Fix hyphenation
 
             if len(cleaned) > 50:  # Only keep substantial paragraphs
                 paragraphs.append(cleaned)
+
+        # If we still only got 1 paragraph and it's very long, try to split by sentences
+        if len(paragraphs) == 1 and len(paragraphs[0]) > 1500:
+            long_text = paragraphs[0]
+            # Split into chunks of roughly 3-4 sentences
+            sentences = re.split(r'(?<=[.!?])\s+(?=[A-Z])', long_text)
+
+            if len(sentences) > 4:
+                paragraphs = []
+                chunk = ""
+                sentence_count = 0
+
+                for sentence in sentences:
+                    chunk += sentence + " "
+                    sentence_count += 1
+
+                    # Create paragraph every 3-5 sentences or if chunk is getting long
+                    if sentence_count >= 4 or len(chunk) > 800:
+                        paragraphs.append(chunk.strip())
+                        chunk = ""
+                        sentence_count = 0
+
+                if chunk.strip():
+                    paragraphs.append(chunk.strip())
 
         return paragraphs
 
