@@ -1,6 +1,21 @@
 {
   "posts": [
     {
+      "id": "test-2026",
+      "title": "test",
+      "slug": "test-blog",
+      "publishDate": "2026-01-04",
+      "excerpt": "30 Going on 31 I am of the generation who was an impressionable adolescent (10 y.o.) when the hit film 13 Going on 30, starring Jennifer Garner, premiered. I remember enjoying the film, but never real...",
+      "featuredImage": "test.jpeg",
+      "tags": [
+        "teszt"
+      ],
+      "readTime": 3,
+      "fileName": "test-blog.html",
+      "createdAt": "2026-01-04T07:17:05.492909",
+      "source": "GitHub Actions"
+    },
+    {
       "id": "advice-from-a-college-graduate-2025",
       "title": "Advice From A College Graduate",
       "slug": "advice-from-a-college-graduate-blog",
@@ -195,6 +210,6 @@
       "lastUpdated": "2025-08-14T15:30:35.022654"
     }
   ],
-  "lastUpdated": "2025-08-14T15:32:09.672434",
-  "totalPosts": 9
+  "lastUpdated": "2026-01-04T07:17:05.493134",
+  "totalPosts": 10
 }
