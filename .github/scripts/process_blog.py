@@ -10,7 +10,6 @@ import re
 import html
 from datetime import datetime
 from pathlib import Path
-import pdfplumber
 
 
 class BlogProcessor:
@@ -29,91 +28,11 @@ class BlogProcessor:
         slug = re.sub(r'[-\s]+', '-', slug)
         return slug.strip('-')
 
-    def extract_text_from_pdf(self, pdf_path: Path) -> list[str]:
-        """Extract paragraphs from PDF with better paragraph detection"""
-        paragraphs = []
-
-        with pdfplumber.open(pdf_path) as pdf:
-            full_text = ""
-            for page in pdf.pages:
-                text = page.extract_text()
-                if text:
-                    full_text += text + "\n\n"  # Add extra newline between pages
-
-        # First, normalize line breaks and fix hyphenation
-        full_text = re.sub(r'(\w)-\n(\w)', r'\1\2', full_text)  # Fix hyphenated words
-
-        # Try multiple strategies to detect paragraphs
-
-        # Strategy 1: Split on double newlines (standard paragraph breaks)
-        if '\n\n' in full_text:
-            raw_paragraphs = re.split(r'\n\s*\n', full_text)
-        # Strategy 2: Split on lines that end with period followed by newline and capital letter
-        else:
-            # Join lines that don't end with sentence-ending punctuation
-            lines = full_text.split('\n')
-            rebuilt_paragraphs = []
-            current_para = ""
-
-            for line in lines:
-                line = line.strip()
-                if not line:
-                    if current_para:
-                        rebuilt_paragraphs.append(current_para)
-                        current_para = ""
-                    continue
-
-                if current_para:
-                    # Check if previous paragraph ended with sentence-ending punctuation
-                    # and current line starts with capital (new paragraph)
-                    if (current_para[-1] in '.!?"' and
-                        line[0].isupper() and
-                        len(current_para) > 200):  # Likely a paragraph break
-                        rebuilt_paragraphs.append(current_para)
-                        current_para = line
-                    else:
-                        current_para += " " + line
-                else:
-                    current_para = line
-
-            if current_para:
-                rebuilt_paragraphs.append(current_para)
-
-            raw_paragraphs = rebuilt_paragraphs if rebuilt_paragraphs else [full_text]
-
-        for para in raw_paragraphs:
-            # Clean up the paragraph
-            cleaned = para.strip()
-            cleaned = re.sub(r'\s+', ' ', cleaned)  # Normalize whitespace
-
-            if len(cleaned) > 50:  # Only keep substantial paragraphs
-                paragraphs.append(cleaned)
-
-        # If we still only got 1 paragraph and it's very long, try to split by sentences
-        if len(paragraphs) == 1 and len(paragraphs[0]) > 1500:
-            long_text = paragraphs[0]
-            # Split into chunks of roughly 3-4 sentences
-            sentences = re.split(r'(?<=[.!?])\s+(?=[A-Z])', long_text)
-
-            if len(sentences) > 4:
-                paragraphs = []
-                chunk = ""
-                sentence_count = 0
-
-                for sentence in sentences:
-                    chunk += sentence + " "
-                    sentence_count += 1
-
-                    # Create paragraph every 3-5 sentences or if chunk is getting long
-                    if sentence_count >= 4 or len(chunk) > 800:
-                        paragraphs.append(chunk.strip())
-                        chunk = ""
-                        sentence_count = 0
-
-                if chunk.strip():
-                    paragraphs.append(chunk.strip())
-
-        return paragraphs
+    def load_content_from_json(self, json_path: Path) -> tuple[list[str], dict]:
+        """Load paragraphs and metadata from content.json"""
+        data = json.loads(json_path.read_text(encoding='utf-8'))
+        paragraphs = data.get('paragraphs', [])
+        return paragraphs, data
 
     def format_date(self, date_str: str = None) -> tuple[str, str]:
         """Return (display_date, iso_date)"""
@@ -268,44 +187,44 @@ class BlogProcessor:
         print(f"✓ Updated blog-data.json")
 
     def find_pending_blog(self) -> tuple[Path | None, Path | None, dict]:
-        """Find PDF and image in pending-blogs folder, along with metadata"""
+        """Find content.json and image in pending-blogs folder"""
         if not self.pending_dir.exists():
             print("No pending-blogs directory found")
             return None, None, {}
 
-        pdf_file = None
+        content_file = None
         image_file = None
         metadata = {}
 
         # Look for files in pending-blogs
         for f in self.pending_dir.iterdir():
-            if f.suffix.lower() == '.pdf':
-                pdf_file = f
+            if f.name == 'content.json':
+                content_file = f
+                metadata = json.loads(f.read_text(encoding='utf-8'))
             elif f.suffix.lower() in ['.jpg', '.jpeg', '.png', '.gif', '.webp']:
                 image_file = f
-            elif f.name == 'metadata.json':
-                metadata = json.loads(f.read_text(encoding='utf-8'))
 
-        return pdf_file, image_file, metadata
+        return content_file, image_file, metadata
 
     def process(self):
         """Main processing function"""
         print("🔍 Looking for pending blog posts...")
 
-        pdf_file, image_file, file_metadata = self.find_pending_blog()
+        content_file, image_file, file_metadata = self.find_pending_blog()
 
-        if not pdf_file:
-            print("No PDF found in pending-blogs/")
+        if not content_file:
+            print("No content.json found in pending-blogs/")
             return False
 
         if not image_file:
             print("No image found in pending-blogs/")
             return False
 
-        # Get metadata from environment (manual trigger) or file
-        title = os.environ.get('BLOG_TITLE') or file_metadata.get('title') or pdf_file.stem
-        tags_str = os.environ.get('BLOG_TAGS') or file_metadata.get('tags') or 'blog'
-        date_str = os.environ.get('BLOG_DATE') or file_metadata.get('date')
+        # Get metadata from content.json
+        title = file_metadata.get('title', 'Untitled')
+        tags_str = file_metadata.get('tags', 'blog')
+        date_str = file_metadata.get('date')
+        paragraphs = file_metadata.get('paragraphs', [])
 
         tags = [t.strip() for t in tags_str.split(',')]
         slug = self.generate_slug(title)
@@ -315,13 +234,11 @@ class BlogProcessor:
         print(f"   Tags: {', '.join(tags)}")
         print(f"   Date: {display_date}")
 
-        # Extract text from PDF
-        paragraphs = self.extract_text_from_pdf(pdf_file)
         if not paragraphs:
-            print("❌ Could not extract text from PDF")
+            print("❌ No paragraphs found in content.json")
             return False
 
-        print(f"   Extracted {len(paragraphs)} paragraphs")
+        print(f"   Found {len(paragraphs)} paragraphs")
 
         # Move image to images directory with clean name
         new_image_name = f"{slug}{image_file.suffix.lower()}"
