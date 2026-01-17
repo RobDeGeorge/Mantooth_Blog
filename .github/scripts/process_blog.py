@@ -263,7 +263,14 @@ class BlogProcessor:
         print(f"✓ Created {blog_file}")
 
         # Generate and insert blog card
-        excerpt = paragraphs[0] if paragraphs else ""
+        # Skip short paragraphs (likely just a title) for the excerpt
+        excerpt = ""
+        for p in paragraphs:
+            if len(p) > 100:  # Find first substantial paragraph
+                excerpt = p
+                break
+        if not excerpt and paragraphs:
+            excerpt = paragraphs[-1]  # Fallback to last paragraph
         card_html = self.generate_blog_card_html(
             title=title,
             excerpt=excerpt,
