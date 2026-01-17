@@ -1,6 +1,23 @@
 {
   "posts": [
     {
+      "id": "music-map-2026",
+      "title": "MUSIC MAP",
+      "slug": "music-map-blog",
+      "publishDate": "2026-01-17",
+      "excerpt": "MUSIC MAP",
+      "featuredImage": "music-map.jpg",
+      "tags": [
+        "Music",
+        "art",
+        "opinion"
+      ],
+      "readTime": 3,
+      "fileName": "music-map-blog.html",
+      "createdAt": "2026-01-17T18:09:41.673242",
+      "source": "GitHub Actions"
+    },
+    {
       "id": "advice-from-a-college-graduate-2025",
       "title": "Advice From A College Graduate",
       "slug": "advice-from-a-college-graduate-blog",
@@ -195,6 +212,6 @@
       "lastUpdated": "2025-08-14T15:30:35.022654"
     }
   ],
-  "lastUpdated": "2026-01-04T07:17:05.493134",
+  "lastUpdated": "2026-01-17T18:09:41.673439",
   "totalPosts": 10
 }
