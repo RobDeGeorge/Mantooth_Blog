@@ -1,6 +1,25 @@
 {
   "posts": [
     {
+      "id": "zion-national-park-2026-2026",
+      "title": "Zion National Park 2026",
+      "slug": "zion-national-park-2026-blog",
+      "publishDate": "2026-04-25",
+      "excerpt": "For this year's National Park excursion, my partner and I visited Zion National Park in Utah. As with previous National Park trips, we went in April (happy 4/20!). However, there were differences as c...",
+      "featuredImage": "zion-national-park-2026.jpg",
+      "tags": [
+        "travel",
+        "zion",
+        "national-parks",
+        "utah",
+        "hiking"
+      ],
+      "readTime": 6,
+      "fileName": "zion-national-park-2026-blog.html",
+      "createdAt": "2026-04-25T14:34:46.918327",
+      "source": "GitHub Actions"
+    },
+    {
       "id": "music-map-2026",
       "title": "MUSIC MAP",
       "slug": "music-map-blog",
@@ -212,6 +231,6 @@
       "lastUpdated": "2025-08-14T15:30:35.022654"
     }
   ],
-  "lastUpdated": "2026-01-17T18:09:41.673439",
-  "totalPosts": 10
+  "lastUpdated": "2026-04-25T14:34:46.918532",
+  "totalPosts": 11
 }
